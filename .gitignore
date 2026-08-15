@@ -1,0 +1,17 @@
+.dart_tool/
+.packages
+.pub/
+build/
+android/.gradle/
+android/local.properties
+.idea/
+.vscode/
+*.iml
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+key.properties
+google-services.json
+GoogleService-Info.plist
