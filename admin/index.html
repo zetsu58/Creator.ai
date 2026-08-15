@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0d12" />
+  <title>CreatorAI Control Center</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">C</div><div><strong>CreatorAI</strong><span>Control Center</span></div></div>
+      <nav id="nav">
+        <button class="nav-item active" data-view="overview">Genel Bakış</button>
+        <button class="nav-item" data-view="users">Kullanıcılar</button>
+        <button class="nav-item" data-view="generations">AI Üretimleri</button>
+        <button class="nav-item" data-view="credits">Kredi & Gelir</button>
+        <button class="nav-item" data-view="providers">AI Sağlayıcıları</button>
+        <button class="nav-item" data-view="ads">Reklam & Paketler</button>
+        <button class="nav-item" data-view="moderation">Moderasyon</button>
+        <button class="nav-item" data-view="system">Sistem Sağlığı</button>
+        <button class="nav-item" data-view="settings">Ayarlar</button>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><span id="backendStatus">Demo / Backend bekleniyor</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><p class="eyebrow">BAŞ ADMIN</p><h1 id="pageTitle">Genel Bakış</h1></div>
+        <div class="top-actions"><button class="ghost" id="refreshBtn">Yenile</button><button class="primary" id="connectBtn">Backend Bağla</button></div>
+      </header>
+
+      <section id="view-overview" class="view active">
+        <div class="hero"><div><p class="eyebrow">CREATORAI LIVE OPS</p><h2>Tek panelden ürün, maliyet ve büyümeyi yönet.</h2><p>Kullanıcı, üretim, kredi, AI sağlayıcı, reklam ve güvenlik metrikleri aynı merkezde.</p></div><div class="hero-badge">V1 ADMIN</div></div>
+        <div class="grid metrics">
+          <article class="card metric"><span>Toplam Kullanıcı</span><strong id="mUsers">0</strong><small>Demo veri</small></article>
+          <article class="card metric"><span>Bugünkü Üretim</span><strong id="mJobs">0</strong><small>Video + Görsel</small></article>
+          <article class="card metric"><span>Kredi Harcaması</span><strong id="mCredits">0</strong><small>Bugün</small></article>
+          <article class="card metric"><span>Tahmini Brüt Gelir</span><strong id="mRevenue">₺0</strong><small>Demo veri</small></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><div class="card-head"><h3>Üretim Kuyruğu</h3><span class="pill ok">Sağlıklı</span></div><div id="queueList" class="list"></div></article>
+          <article class="card"><div class="card-head"><h3>Maliyet Kontrolü</h3><span class="pill">Son 24 saat</span></div><div id="costList" class="list"></div></article>
+        </div>
+      </section>
+
+      <section id="view-users" class="view">
+        <div class="toolbar"><input id="userSearch" placeholder="ID, e-posta veya kullanıcı ara"/><select><option>Tüm planlar</option><option>Free</option><option>Plus</option><option>Pro</option><option>Business</option></select><button class="primary" data-safe-action="credit">Kredi İşlemi</button></div>
+        <div class="card table-wrap"><table><thead><tr><th>Kullanıcı</th><th>Plan</th><th>Kredi</th><th>Üretim</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="usersTable"></tbody></table></div>
+      </section>
+
+      <section id="view-generations" class="view">
+        <div class="grid metrics"><article class="card metric"><span>Başarı Oranı</span><strong>96.8%</strong><small>Demo</small></article><article class="card metric"><span>Ort. Video Süresi</span><strong>8.4 sn</strong><small>Demo</small></article><article class="card metric"><span>Başarısız İş</span><strong>7</strong><small>Oto iade açık</small></article><article class="card metric"><span>Kuyruk</span><strong>12</strong><small>2 işçi aktif</small></article></div>
+        <div class="card table-wrap"><table><thead><tr><th>Job</th><th>Tür</th><th>Kullanıcı</th><th>Model profili</th><th>Kredi</th><th>Durum</th></tr></thead><tbody id="jobsTable"></tbody></table></div>
+      </section>
+
+      <section id="view-credits" class="view">
+        <div class="grid two"><article class="card"><h3>Kredi Ekonomisi</h3><div class="form-grid"><label>Yeni kullanıcı kredisi<input value="100"/></label><label>Rewarded Ad ödülü<input value="3"/></label><label>Günlük reklam limiti<input value="3"/></label><label>Minimum bakiye<input value="0"/></label></div><button class="primary" data-safe-action="save">Değişiklikleri Kaydet</button></article><article class="card"><h3>Gelir Özeti</h3><div class="list"><div><span>Kredi paketi</span><b>₺18.420</b></div><div><span>Abonelik</span><b>₺31.850</b></div><div><span>Reklam</span><b>₺7.920</b></div><div><span>AI tahmini maliyet</span><b>-₺19.640</b></div></div></article></div>
+      </section>
+
+      <section id="view-providers" class="view"><div class="grid three" id="providerCards"></div><div class="card"><div class="card-head"><h3>Model Router</h3><span class="pill warn">Backend gerekli</span></div><p class="muted">FAST, QUALITY, CINEMATIC, IMAGE ve UPSCALE profillerinin hangi sağlayıcıya yönleneceği backend üzerinden yönetilecek.</p><button class="primary" data-safe-action="router">Router Ayarını Kaydet</button></div></section>
+
+      <section id="view-ads" class="view"><div class="grid two"><article class="card"><h3>Rewarded Ads</h3><label class="switch-row">Ödüllü reklamlar <input type="checkbox" checked></label><label class="switch-row">Üretim sonrası interstitial <input type="checkbox"></label><label class="switch-row">Pro kullanıcıya reklam gösterme <input type="checkbox"></label></article><article class="card"><h3>Paketler</h3><div class="list"><div><span>Creator Plus</span><b>₺199 / ay</b></div><div><span>Creator Pro</span><b>₺399 / ay</b></div><div><span>Business</span><b>₺799 / ay</b></div></div></article></div></section>
+
+      <section id="view-moderation" class="view"><div class="grid metrics"><article class="card metric"><span>İnceleme Kuyruğu</span><strong>4</strong><small>Demo</small></article><article class="card metric"><span>Engellenen Prompt</span><strong>18</strong><small>24 saat</small></article><article class="card metric"><span>Şüpheli Hesap</span><strong>3</strong><small>Risk sinyali</small></article><article class="card metric"><span>İtiraz</span><strong>1</strong><small>Açık</small></article></div><div class="card"><h3>Güvenlik Politikaları</h3><div class="form-grid"><label class="switch-row">Prompt güvenlik kontrolü <input type="checkbox" checked></label><label class="switch-row">Dosya türü doğrulama <input type="checkbox" checked></label><label class="switch-row">Rate limit <input type="checkbox" checked></label><label class="switch-row">Şüpheli kredi hareketi kilidi <input type="checkbox" checked></label></div></div></section>
+
+      <section id="view-system" class="view"><div class="grid three"><article class="card health"><span class="status-dot"></span><div><b>API Gateway</b><small>Backend bağlanınca canlı</small></div></article><article class="card health"><span class="status-dot"></span><div><b>Generation Queue</b><small>Backend bağlanınca canlı</small></div></article><article class="card health"><span class="status-dot"></span><div><b>Database</b><small>Backend bağlanınca canlı</small></div></article></div><div class="card"><h3>Olay Günlüğü</h3><pre id="logBox">[ADMIN] CreatorAI Control Center hazır\n[SECURITY] Secret değerler frontend'e yazılmadı\n[BACKEND] Bağlantı bekleniyor</pre></div></section>
+
+      <section id="view-settings" class="view"><div class="grid two"><article class="card"><h3>Admin Yetkileri</h3><div class="list"><div><span>Owner / Baş Admin</span><b>Tam yetki</b></div><div><span>Finance Admin</span><b>Gelir & kredi</b></div><div><span>Moderator</span><b>İçerik & kullanıcı</b></div><div><span>Support</span><b>Salt okunur + destek</b></div></div></article><article class="card"><h3>Güvenlik</h3><p class="muted">Üretimde MFA, kısa ömürlü oturum, server-side RBAC, audit log ve kritik işlemlerde yeniden doğrulama zorunlu olacak.</p><button class="primary" data-safe-action="security">Güvenlik Ayarları</button></article></div></section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
