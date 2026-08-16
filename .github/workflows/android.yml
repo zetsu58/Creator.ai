@@ -19,6 +19,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate backend TypeScript
+        shell: bash
+        run: |
+          cd backend
+          npm install
+          npm run build
+          test -f dist/server.js
+          test -f dist/provider.js
+
       - name: Setup Flutter 3.44.7
         uses: subosito/flutter-action@v2
         with:
@@ -30,26 +44,49 @@ jobs:
         run: flutter --version
 
       - name: Bootstrap Android platform
-        run: flutter create --platforms=android --org ai.creator --project-name creator_ai .
+        run: flutter create --platforms=android --org ai.veyra --project-name creator_ai .
 
-      - name: Raise Android minSdk to 24
+      - name: Configure Android network and minSdk
         shell: bash
         run: |
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/' android/app/build.gradle.kts
-          elif [ -f android/app/build.gradle ]; then
-            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' android/app/build.gradle
-          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          for name in ['android/app/build.gradle.kts', 'android/app/build.gradle']:
+              p = Path(name)
+              if not p.exists():
+                  continue
+              s = p.read_text()
+              s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
+              s = s.replace('minSdkVersion flutter.minSdkVersion', 'minSdkVersion 24')
+              s = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "ai.veyra.app"', s)
+              s = re.sub(r'applicationId\s+"[^"]+"', 'applicationId "ai.veyra.app"', s)
+              p.write_text(s)
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          s = manifest.read_text()
+          permission = '<uses-permission android:name="android.permission.INTERNET" />'
+          if permission not in s:
+              s = s.replace('<application', f'    {permission}\n\n    <application', 1)
+          s = s.replace('android:label="creator_ai"', 'android:label="Veyra AI"')
+          manifest.write_text(s)
+          PY
           grep -R "minSdk" android/app/build.gradle* || true
+          grep -n "android.permission.INTERNET" android/app/src/main/AndroidManifest.xml
+          grep -R "ai.veyra.app" android/app/build.gradle* || true
 
       - name: Get packages
         run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Smoke tests
         run: flutter test
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug -t lib/main_auth.dart --dart-define=VEYRA_API_BASE_URL=https://veyra-ai-xsp3.onrender.com
 
       - name: Verify APK
         shell: bash
@@ -61,7 +98,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: creatorai-debug-apk
+          name: veyra-ai-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
