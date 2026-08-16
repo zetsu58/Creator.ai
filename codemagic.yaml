@@ -10,7 +10,15 @@ workflows:
         script: |
           git rev-parse HEAD
           git log -1 --oneline
-          sed -n '1,100p' test/widget_test.dart
+          sed -n '1,120p' test/widget_test.dart
+      - name: Verify Veyra Cloud backend v2
+        script: |
+          node --version
+          npm --version
+          cd backend
+          npm install
+          npm run build
+          test -f dist/index_v2.js
       - name: Bootstrap Android
         script: flutter create --platforms=android --org ai.veyra --project-name creator_ai .
       - name: Configure Veyra Android API 36
@@ -85,6 +93,12 @@ workflows:
     environment:
       flutter: 3.44.7
     scripts:
+      - name: Verify Veyra Cloud backend v2
+        script: |
+          cd backend
+          npm install
+          npm run build
+          test -f dist/index_v2.js
       - name: Bootstrap Android
         script: flutter create --platforms=android --org ai.veyra --project-name creator_ai .
       - name: Configure API 36 release candidate
@@ -107,6 +121,9 @@ workflows:
               ms=ms.replace('</application>', f'<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="{aid}" /></application>')
           m.write_text(ms)
           PY
+      - name: Require production Cloud URL
+        script: |
+          test -n "${VEYRA_API_BASE_URL:-}" || (echo "VEYRA_API_BASE_URL is required for AAB release candidate" && exit 1)
       - name: Install dependencies
         script: flutter pub get
       - name: Analyze and test
@@ -114,12 +131,7 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - name: Build release candidate AAB
-        script: |
-          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
-            flutter build appbundle --release --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
-          else
-            flutter build appbundle --release
-          fi
+        script: flutter build appbundle --release --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
       - name: Verify AAB
         script: |
           test -f build/app/outputs/bundle/release/app-release.aab
