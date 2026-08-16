@@ -2,19 +2,49 @@
 
 Runnable TypeScript/Node API for the Veyra AI mobile and web clients.
 
-## Current working foundation
+## Working now
 
-- `GET /health` service/provider health
-- `GET /v1/users/:userId/wallet` starter wallet
-- `POST /v1/quote` server-side credit pricing
-- `POST /v1/generations` credit reservation + generation job creation
-- `GET /v1/generations/:id` job status
-- admin-protected mock completion/refund endpoints
-- admin summary and ledger endpoints
-- PostgreSQL production schema for users, wallets, ledger, jobs, purchases, provider events and audit logs
-- Dockerfile + Render blueprint
+- `GET /health` service/provider health and capability list
+- `GET /v1/legal` production legal/support URL discovery
+- wallet and user generation history
+- server-side credit quotes
+- prompt moderation gate before generation
+- credit reservation + generation job creation
+- generation status
+- user reporting for unsafe/infringing AI outputs
+- admin failure endpoint with automatic one-time credit refund
+- account deletion API that clears account-linked generation content in the development store
+- Copilot planning API
+- Brand Kit and batch business APIs
+- admin summary, ledger and report queues
+- expanded PostgreSQL schema for moderation reports, purchases, integrity events and deletion requests
+- Dockerfile + deployment blueprint
 
-The development core currently uses an in-memory store so it can boot without external services. Production must use the PostgreSQL schema in `db/schema.sql`; Redis/queue workers are the next persistence step.
+## Configured integration contracts (credentials still required)
+
+### Google Play Integrity
+
+`POST /v1/integrity/google-play`
+
+The endpoint exists and refuses to pretend verification succeeded when credentials are absent. Configure `GOOGLE_PLAY_INTEGRITY_SERVICE_ACCOUNT_JSON`, then implement the official remote verdict decode/validation adapter before enabling `PLAY_INTEGRITY_REQUIRED=true` in production.
+
+### Google Play Billing verification
+
+`POST /v1/purchases/google/verify`
+
+The API contract exists and requires `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. Until the official Play Developer API call and acknowledge/consume workflow are completed with real credentials, the endpoint returns a non-success status rather than granting credits.
+
+### Apple In-App Purchase verification
+
+`POST /v1/purchases/apple/verify`
+
+The API contract exists and requires `APPLE_IAP_ISSUER_ID`, `APPLE_IAP_KEY_ID` and `APPLE_IAP_PRIVATE_KEY`. Until App Store Server API verification is wired with real credentials, it does not grant credits.
+
+## Development vs production storage
+
+The development server currently uses an in-memory store so it can boot without external infrastructure. This is suitable only for UI/API contract testing.
+
+Production must switch to the PostgreSQL schema in `db/schema.sql` before accepting real users, real purchases or persistent credits. Restarting the memory-store server loses test data.
 
 ## Local start
 
@@ -22,6 +52,7 @@ The development core currently uses an in-memory store so it can boot without ex
 cd backend
 cp .env.example .env
 npm install
+npm run build
 npm run dev
 ```
 
@@ -31,23 +62,23 @@ Health check:
 curl http://localhost:8080/health
 ```
 
-## Client configuration
-
-Flutter reads the backend URL from `VEYRA_API_BASE_URL`:
+## Flutter client configuration
 
 ```bash
 flutter run --dart-define=VEYRA_API_BASE_URL=https://api.example.com
 ```
 
-Never commit provider API keys, payment secrets, admin tokens, database passwords or signing credentials. They belong in the hosting platform secret store only.
+Provider API keys, payment credentials, admin tokens, database passwords and signing keys must never be committed or bundled into the APK/IPA.
 
-## Production roadmap
+## P0 production work still requiring external credentials/infrastructure
 
-1. PostgreSQL repository layer + migrations
-2. Redis-backed generation queue and worker
-3. authentication/JWT validation
-4. provider adapters (video/image) and signed webhooks
-5. Google Play / Apple purchase verification and web payment provider
-6. object storage + signed media URLs
-7. rate limiting, abuse controls, moderation and audit logs
-8. metrics, tracing, backups and alerting
+1. PostgreSQL repository adapter and migrations on the chosen production host.
+2. Redis-backed queue/worker or equivalent durable job queue.
+3. Production authentication/JWT provider.
+4. Real image/video provider adapters and signed webhook validation.
+5. Official Google Play purchase verification + acknowledge/consume.
+6. Official Apple transaction verification/notifications.
+7. Official Play Integrity verdict verification.
+8. Object storage with private buckets and signed media URLs.
+9. Production rate limits/WAF and distributed abuse controls.
+10. Crash/error monitoring, metrics, backups and alerts.
