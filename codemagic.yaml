@@ -65,7 +65,9 @@ workflows:
           grep -R "ai.veyra.app" android/app/build.gradle* || true
           grep -n "com.google.android.gms.ads.APPLICATION_ID" android/app/src/main/AndroidManifest.xml
           test -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          test -f lib/main_auth.dart
           if [ -n "${VEYRA_API_BASE_URL:-}" ]; then echo "Veyra Cloud URL configured"; else echo "Veyra Cloud URL is NOT configured"; fi
+          echo "Firebase enabled: ${VEYRA_FIREBASE_ENABLED:-false}"
       - name: Install dependencies
         script: flutter pub get
       - name: Analyze
@@ -74,11 +76,10 @@ workflows:
         script: flutter test
       - name: Build Android debug APK
         script: |
-          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
-            flutter build apk --debug --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
-          else
-            flutter build apk --debug
-          fi
+          EXTRA=""
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then EXTRA="$EXTRA --dart-define=VEYRA_API_BASE_URL=$VEYRA_API_BASE_URL"; fi
+          if [ "${VEYRA_FIREBASE_ENABLED:-false}" = "true" ]; then EXTRA="$EXTRA --dart-define=VEYRA_FIREBASE_ENABLED=true"; fi
+          flutter build apk --debug -t lib/main_auth.dart $EXTRA
       - name: Verify APK
         script: |
           test -f build/app/outputs/flutter-apk/app-debug.apk
@@ -131,7 +132,10 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - name: Build release candidate AAB
-        script: flutter build appbundle --release --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
+        script: |
+          EXTRA="--dart-define=VEYRA_API_BASE_URL=$VEYRA_API_BASE_URL"
+          if [ "${VEYRA_FIREBASE_ENABLED:-false}" = "true" ]; then EXTRA="$EXTRA --dart-define=VEYRA_FIREBASE_ENABLED=true"; fi
+          flutter build appbundle --release -t lib/main_auth.dart $EXTRA
       - name: Verify AAB
         script: |
           test -f build/app/outputs/bundle/release/app-release.aab
@@ -166,11 +170,10 @@ workflows:
           flutter test
       - name: Build Web release
         script: |
-          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
-            flutter build web --release --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
-          else
-            flutter build web --release
-          fi
+          EXTRA=""
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then EXTRA="$EXTRA --dart-define=VEYRA_API_BASE_URL=$VEYRA_API_BASE_URL"; fi
+          if [ "${VEYRA_FIREBASE_ENABLED:-false}" = "true" ]; then EXTRA="$EXTRA --dart-define=VEYRA_FIREBASE_ENABLED=true"; fi
+          flutter build web --release -t lib/main_auth.dart $EXTRA
     artifacts:
       - build/web/**
 
@@ -209,10 +212,9 @@ workflows:
           flutter test
       - name: Build iOS simulator app
         script: |
-          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
-            flutter build ios --simulator --debug --no-codesign --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
-          else
-            flutter build ios --simulator --debug --no-codesign
-          fi
+          EXTRA=""
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then EXTRA="$EXTRA --dart-define=VEYRA_API_BASE_URL=$VEYRA_API_BASE_URL"; fi
+          if [ "${VEYRA_FIREBASE_ENABLED:-false}" = "true" ]; then EXTRA="$EXTRA --dart-define=VEYRA_FIREBASE_ENABLED=true"; fi
+          flutter build ios --simulator --debug --no-codesign -t lib/main_auth.dart $EXTRA
     artifacts:
       - build/ios/iphonesimulator/*.app/**
