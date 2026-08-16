@@ -4,8 +4,17 @@ import { pollProvider, providerConfigured, startProvider } from './provider.js';
 let running=false;
 let timer:NodeJS.Timeout|null=null;
 
+function logWorker(event:string, details:Record<string,unknown>={}) {
+  try {
+    console.log(`[generation-worker] ${event} ${JSON.stringify(details)}`);
+  } catch {
+    console.log(`[generation-worker] ${event}`);
+  }
+}
+
 async function refund(job:any, reason:string, message:string) {
   if(!pool) return;
+  logWorker('refund', {jobId:job?.id, reason, message:String(message).slice(0,700)});
   const client=await pool.connect();
   try{
     await client.query('begin');
@@ -35,14 +44,21 @@ async function processQueued(){
     const claimed=await pool.query("update generation_jobs set status='processing',started_at=coalesce(started_at,now()) where id=$1 and status='queued' returning id",[job.id]);
     if(!claimed.rowCount) continue;
     try{
+      logWorker('submit', {jobId:job.id,type:job.type,aspectRatio:job.aspectRatio,seconds:job.seconds,audio:job.audio});
       const started=await startProvider(job);
+      logWorker('submitted', {jobId:job.id,providerJobId:started.providerJobId,status:started.status});
       if(started.status==='completed'){
         if(!started.outputUrl) throw new Error('provider_completed_without_output');
         await pool.query("update generation_jobs set provider_job_id=$2,status='completed',output_url=$3,completed_at=now() where id=$1",[job.id,started.providerJobId,started.outputUrl]);
+        logWorker('completed', {jobId:job.id,providerJobId:started.providerJobId});
       }else{
         await pool.query('update generation_jobs set provider_job_id=$2 where id=$1',[job.id,started.providerJobId]);
       }
-    }catch(e){await refund(job,'provider_submit_failed',String(e));}
+    }catch(e){
+      const message=String(e);
+      logWorker('submit_failed', {jobId:job.id,error:message.slice(0,700)});
+      await refund(job,'provider_submit_failed',message);
+    }
   }
 }
 
@@ -55,12 +71,16 @@ async function processActive(){
       if(state.status==='completed'){
         if(!state.outputUrl) throw new Error('provider_completed_without_output');
         await pool.query("update generation_jobs set status='completed',output_url=$2,completed_at=now() where id=$1 and status='processing'",[job.id,state.outputUrl]);
+        logWorker('completed', {jobId:job.id,providerJobId:job.provider_job_id});
       }else if(state.status==='failed'){
+        logWorker('provider_failed', {jobId:job.id,providerJobId:job.provider_job_id,error:state.error});
         await refund(job,'provider_failed',state.error||'provider_failed');
       }
     }catch(e){
+      const message=String(e);
+      logWorker('poll_error', {jobId:job.id,providerJobId:job.provider_job_id,error:message.slice(0,700)});
       const age=await pool.query('select extract(epoch from (now()-started_at))::int as age from generation_jobs where id=$1',[job.id]);
-      if(Number(age.rows[0]?.age||0)>1200) await refund(job,'provider_timeout',String(e));
+      if(Number(age.rows[0]?.age||0)>1200) await refund(job,'provider_timeout',message);
     }
   }
 }
@@ -73,6 +93,7 @@ export async function runGenerationWorkerOnce(){
 
 export function startGenerationWorker(){
   if(timer||!pool) return;
+  logWorker('started');
   void runGenerationWorkerOnce();
   timer=setInterval(()=>void runGenerationWorkerOnce(),5000);
   timer.unref();
