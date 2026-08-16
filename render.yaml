@@ -27,9 +27,9 @@ services:
       - key: REPLICATE_API_TOKEN
         sync: false
       - key: REPLICATE_VIDEO_MODEL
-        sync: false
+        value: google/veo-3.1-fast
       - key: REPLICATE_IMAGE_MODEL
-        sync: false
+        value: google/imagen-4-fast
       - key: REPLICATE_PROMPT_FIELD
         value: prompt
       - key: REPLICATE_ASPECT_RATIO_FIELD
