@@ -17,7 +17,9 @@ workflows:
       - name: Configure Veyra Android
         script: |
           python3 - <<'PY'
+          import os
           from pathlib import Path
+
           for name in ['android/app/build.gradle.kts','android/app/build.gradle']:
               p=Path(name)
               if p.exists():
@@ -25,11 +27,23 @@ workflows:
                   s=s.replace('minSdk = flutter.minSdkVersion','minSdk = 24')
                   s=s.replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24')
                   p.write_text(s)
-          p=Path('android/app/src/main/AndroidManifest.xml')
-          if p.exists():
-              s=p.read_text().replace('android:label="creator_ai"','android:label="Veyra AI"')
-              p.write_text(s)
+
+          manifest=Path('android/app/src/main/AndroidManifest.xml')
+          if manifest.exists():
+              s=manifest.read_text()
+              s=s.replace('android:label="creator_ai"','android:label="Veyra AI"')
+              app_id=os.getenv('ADMOB_ANDROID_APP_ID','ca-app-pub-3940256099942544~3347511713')
+              marker='com.google.android.gms.ads.APPLICATION_ID'
+              if marker not in s:
+                  meta=f'''\n        <meta-data\n            android:name="com.google.android.gms.ads.APPLICATION_ID"\n            android:value="{app_id}" />\n'''
+                  s=s.replace('</application>', meta + '    </application>')
+              manifest.write_text(s)
+              print(f'AdMob Android App ID configured: {app_id[:18]}...')
           PY
+      - name: Verify Android manifest
+        script: |
+          grep -n "com.google.android.gms.ads.APPLICATION_ID" android/app/src/main/AndroidManifest.xml
+          grep -n "Veyra AI" android/app/src/main/AndroidManifest.xml
       - name: Install dependencies
         script: flutter pub get
       - name: Analyze
@@ -100,11 +114,17 @@ workflows:
       - name: Configure Veyra iOS
         script: |
           python3 - <<'PY'
+          import os
           from pathlib import Path
           p=Path('ios/Runner/Info.plist')
           if p.exists():
               s=p.read_text().replace('<string>creator_ai</string>','<string>Veyra AI</string>')
+              app_id=os.getenv('ADMOB_IOS_APP_ID','ca-app-pub-3940256099942544~1458002511')
+              if 'GADApplicationIdentifier' not in s:
+                  insert=f'''\n\t<key>GADApplicationIdentifier</key>\n\t<string>{app_id}</string>\n'''
+                  s=s.replace('</dict>', insert + '</dict>')
               p.write_text(s)
+              print(f'AdMob iOS App ID configured: {app_id[:18]}...')
           PY
       - name: Install dependencies
         script: flutter pub get
