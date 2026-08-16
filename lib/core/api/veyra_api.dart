@@ -10,7 +10,10 @@ class VeyraApi {
   final http.Client _client;
   String? _token;
 
-  static const String baseUrl = String.fromEnvironment('VEYRA_API_BASE_URL', defaultValue: '');
+  static const String baseUrl = String.fromEnvironment(
+    'VEYRA_API_BASE_URL',
+    defaultValue: 'https://veyra-ai-xsp3.onrender.com',
+  );
   bool get configured => baseUrl.trim().isNotEmpty;
   String? get token => _token;
 
@@ -40,7 +43,7 @@ class VeyraApi {
   Future<bool> health() async {
     if (!configured) return false;
     try {
-      final response = await _client.get(_uri('/health'), headers: _headers()).timeout(const Duration(seconds: 6));
+      final response = await _client.get(_uri('/health'), headers: _headers()).timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) return false;
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       return body['ok'] == true;
@@ -54,7 +57,7 @@ class VeyraApi {
       _uri('/v1/auth/anonymous'),
       headers: _headers(json: true),
       body: jsonEncode({'deviceKey': deviceKey}),
-    );
+    ).timeout(const Duration(seconds: 20));
     final body = await _json(response, expected: 201);
     final nextToken = body['token'];
     if (nextToken is String && nextToken.isNotEmpty) _token = nextToken;
