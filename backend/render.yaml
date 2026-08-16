@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: veyra-ai-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: VEYRA_ADMIN_TOKEN
+        generateValue: true
+      - key: AI_PROVIDER_PRIMARY
+        value: mock
+      - key: AI_PROVIDER_FALLBACK
+        value: mock
