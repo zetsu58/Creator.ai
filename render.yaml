@@ -21,9 +21,17 @@ services:
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false
       - key: AI_PROVIDER_PRIMARY
-        value: mock
+        value: huggingface
       - key: AI_PROVIDER_FALLBACK
-        value: mock
+        value: replicate
+      - key: HF_TOKEN
+        sync: false
+      - key: HF_INFERENCE_PROVIDER
+        value: auto
+      - key: HF_VIDEO_MODEL
+        value: Lightricks/LTX-Video-0.9.8-13B-distilled
+      - key: HF_IMAGE_MODEL
+        value: black-forest-labs/FLUX.1-schnell
       - key: REPLICATE_API_TOKEN
         sync: false
       - key: REPLICATE_VIDEO_MODEL
