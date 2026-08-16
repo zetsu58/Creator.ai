@@ -1,5 +1,5 @@
 import { pool } from './db.js';
-import { pollProvider, providerConfigured, startProvider } from './provider.js';
+import { pollProvider, providerConfigured, providerDiagnostics, startProvider } from './provider.js';
 
 let running=false;
 let timer:NodeJS.Timeout|null=null;
@@ -38,7 +38,9 @@ async function processQueued(){
   const r=await pool.query("select id,kind as type,prompt,quality,aspect_ratio as \"aspectRatio\",duration_seconds as seconds,audio from generation_jobs where status='queued' order by created_at asc limit 3");
   for(const job of r.rows){
     if(!providerConfigured()){
-      await refund(job,'provider_not_configured','AI provider is not configured on the server.');
+      const diagnostics=providerDiagnostics();
+      logWorker('provider_not_configured', diagnostics);
+      await refund(job,'provider_not_configured',`AI provider is not configured on the server. provider=${diagnostics.provider}; replicateTokenPresent=${diagnostics.replicateTokenPresent}; videoModel=${diagnostics.videoModel}`);
       continue;
     }
     const claimed=await pool.query("update generation_jobs set status='processing',started_at=coalesce(started_at,now()) where id=$1 and status='queued' returning id",[job.id]);
@@ -93,7 +95,7 @@ export async function runGenerationWorkerOnce(){
 
 export function startGenerationWorker(){
   if(timer||!pool) return;
-  logWorker('started');
+  logWorker('started', providerDiagnostics());
   void runGenerationWorkerOnce();
   timer=setInterval(()=>void runGenerationWorkerOnce(),5000);
   timer.unref();
