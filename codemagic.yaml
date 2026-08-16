@@ -6,6 +6,11 @@ workflows:
     environment:
       flutter: 3.44.7
     scripts:
+      - name: Source revision
+        script: |
+          git rev-parse HEAD
+          git log -1 --oneline
+          sed -n '1,80p' test/widget_test.dart
       - name: Bootstrap Android
         script: |
           flutter create --platforms=android --org ai.veyra --project-name creator_ai .
@@ -47,6 +52,10 @@ workflows:
     environment:
       flutter: 3.44.7
     scripts:
+      - name: Source revision
+        script: |
+          git rev-parse HEAD
+          git log -1 --oneline
       - name: Bootstrap Web
         script: flutter create --platforms=web --org ai.veyra --project-name creator_ai .
       - name: Configure Veyra Web
@@ -82,6 +91,10 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Source revision
+        script: |
+          git rev-parse HEAD
+          git log -1 --oneline
       - name: Bootstrap iOS
         script: flutter create --platforms=ios --org ai.veyra --project-name creator_ai .
       - name: Configure Veyra iOS
