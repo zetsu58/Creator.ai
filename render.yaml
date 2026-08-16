@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: veyra-cloud-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: NODE_ENV
+        value: production
+      - key: VEYRA_ADMIN_TOKEN
+        generateValue: true
+      - key: AI_PROVIDER_PRIMARY
+        value: mock
+      - key: AI_PROVIDER_FALLBACK
+        value: mock
+      - key: DATABASE_URL
+        fromDatabase:
+          name: veyra-postgres
+          property: connectionString
+
+databases:
+  - name: veyra-postgres
+    databaseName: veyra
+    user: veyra
