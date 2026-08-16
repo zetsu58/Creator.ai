@@ -12,5 +12,7 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY --from=build /app/dist ./dist
+COPY scripts ./scripts
+COPY db ./db
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "node scripts/migrate.mjs && node dist/index_v2.js"]
