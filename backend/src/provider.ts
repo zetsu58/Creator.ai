@@ -40,10 +40,10 @@ function replicateInput(job:GenerationJob) {
 async function replicateRequest(path:string, init?:RequestInit) {
   const token=process.env.REPLICATE_API_TOKEN?.trim() || '';
   if(!token) throw new Error('replicate_token_missing');
-  const res=await fetch(`https://api.replicate.com${path}`,{
-    ...init,
-    headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...(init?.headers||{})},
-  });
+  const headers=new Headers(init?.headers);
+  headers.set('Authorization',`Bearer ${token}`);
+  headers.set('Content-Type','application/json');
+  const res=await fetch(`https://api.replicate.com${path}`,{...init,headers});
   const body:any=await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(`replicate_http_${res.status}:${body?.detail||body?.error||JSON.stringify(body)}`);
   return body;
