@@ -42,6 +42,12 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
 
   String t(String tr, String en) => Localizations.localeOf(context).languageCode == 'tr' ? tr : en;
 
+  int _asInt(dynamic value, [int fallback = 0]) {
+    if (value is num) return value.toInt();
+    if (value is String) return num.tryParse(value)?.toInt() ?? fallback;
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -65,7 +71,10 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
 
   Future<void> _load() async {
     if (!mounted) return;
-    setState(() { loading = true; error = null; });
+    setState(() {
+      loading = true;
+      error = null;
+    });
     try {
       if (!widget.api.configured) {
         throw Exception(t('Veyra Cloud sunucu adresi yapılandırılmadı', 'Veyra Cloud server URL is not configured'));
@@ -86,7 +95,7 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
       } catch (_) {}
       if (!mounted) return;
       setState(() {
-        credits = (wallet['credits'] as num?)?.toInt() ?? credits;
+        credits = _asInt(wallet['credits'], credits);
         plan = '${wallet['plan'] ?? 'free'}';
         products = items;
         ledger = history;
@@ -214,12 +223,18 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
             if (ledger.isEmpty)
               Card(child: Padding(padding: const EdgeInsets.all(18), child: Text(t('Henüz kredi hareketi yok.', 'No credit activity yet.'), style: const TextStyle(color: Colors.white60))))
             else
-              ...ledger.map((tx) => Card(child: ListTile(
-                leading: CircleAvatar(backgroundColor: ((tx['delta'] as num?) ?? 0) >= 0 ? Colors.green.withValues(alpha: .15) : Colors.purple.withValues(alpha: .16), child: Icon(((tx['delta'] as num?) ?? 0) >= 0 ? Icons.add : Icons.auto_awesome, color: ((tx['delta'] as num?) ?? 0) >= 0 ? Colors.greenAccent : CreatorTheme.cyan)),
-                title: Text('${tx['reason'] ?? 'credit'}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text('${tx['createdAt'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Text('${((tx['delta'] as num?) ?? 0) > 0 ? '+' : ''}${tx['delta'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w900)),
-              ))),
+              ...ledger.map((tx) {
+                final delta = _asInt(tx['delta']);
+                return Card(child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: delta >= 0 ? Colors.green.withValues(alpha: .15) : Colors.purple.withValues(alpha: .16),
+                    child: Icon(delta >= 0 ? Icons.add : Icons.auto_awesome, color: delta >= 0 ? Colors.greenAccent : CreatorTheme.cyan),
+                  ),
+                  title: Text('${tx['reason'] ?? 'credit'}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Text('${tx['createdAt'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  trailing: Text('${delta > 0 ? '+' : ''}$delta', style: const TextStyle(fontWeight: FontWeight.w900)),
+                ));
+              }),
           ],
         ),
       ),
