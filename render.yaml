@@ -13,6 +13,8 @@ services:
         value: production
       - key: VEYRA_ADMIN_TOKEN
         generateValue: true
+      - key: VEYRA_SESSION_SECRET
+        generateValue: true
       - key: AI_PROVIDER_PRIMARY
         value: mock
       - key: AI_PROVIDER_FALLBACK
