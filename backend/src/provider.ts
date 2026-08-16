@@ -24,16 +24,25 @@ function outputUrl(value:any): string|null {
 }
 
 function modelFor(job:GenerationJob) {
-  if (job.type==='video' || job.type==='product_ad') return process.env.REPLICATE_VIDEO_MODEL?.trim() || '';
+  if (job.type==='video' || job.type==='product_ad') return process.env.REPLICATE_VIDEO_MODEL?.trim() || 'prunaai/p-video';
   return process.env.REPLICATE_IMAGE_MODEL?.trim() || '';
 }
 
 function replicateInput(job:GenerationJob) {
   const input:any={};
   input[process.env.REPLICATE_PROMPT_FIELD || 'prompt']=job.prompt;
-  if (job.aspectRatio) input[process.env.REPLICATE_ASPECT_RATIO_FIELD || 'aspect_ratio']=job.aspectRatio;
-  if (job.seconds && (job.type==='video'||job.type==='product_ad')) input[process.env.REPLICATE_DURATION_FIELD || 'duration']=job.seconds;
-  if (job.audio && (job.type==='video'||job.type==='product_ad')) input[process.env.REPLICATE_AUDIO_FIELD || 'generate_audio']=true;
+
+  // Provider schemas differ. Optional fields are only sent when their mapping
+  // has explicitly been configured in Render, preventing 422 schema errors.
+  const aspectField=process.env.REPLICATE_ASPECT_RATIO_FIELD?.trim();
+  if (job.aspectRatio && aspectField) input[aspectField]=job.aspectRatio;
+
+  const durationField=process.env.REPLICATE_DURATION_FIELD?.trim();
+  if (job.seconds && durationField && (job.type==='video'||job.type==='product_ad')) input[durationField]=job.seconds;
+
+  const audioField=process.env.REPLICATE_AUDIO_FIELD?.trim();
+  if (job.audio && audioField && (job.type==='video'||job.type==='product_ad')) input[audioField]=true;
+
   return input;
 }
 
@@ -51,7 +60,7 @@ async function replicateRequest(path:string, init?:RequestInit) {
 
 export function providerConfigured() {
   const provider=(process.env.AI_PROVIDER_PRIMARY||'mock').toLowerCase();
-  if(provider==='replicate') return Boolean(process.env.REPLICATE_API_TOKEN?.trim() && (process.env.REPLICATE_VIDEO_MODEL?.trim()||process.env.REPLICATE_IMAGE_MODEL?.trim()));
+  if(provider==='replicate') return Boolean(process.env.REPLICATE_API_TOKEN?.trim());
   return false;
 }
 
@@ -62,14 +71,17 @@ export async function startProvider(job:GenerationJob):Promise<ProviderStart> {
   if(!model) throw new Error(`replicate_model_missing:${job.type}`);
   const parts=model.split('/');
   if(parts.length!==2) throw new Error('replicate_model_must_be_owner_slash_name');
+  const input=replicateInput(job);
+  console.log('[replicate] create', JSON.stringify({jobId:job.id,model,inputKeys:Object.keys(input)}));
   const body=await replicateRequest(`/v1/models/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/predictions`,{
     method:'POST',
     headers:{'Cancel-After':'15m'},
-    body:JSON.stringify({input:replicateInput(job)}),
+    body:JSON.stringify({input}),
   });
   const status=String(body.status||'').toLowerCase();
   if(status==='succeeded') return {providerJobId:String(body.id),status:'completed',outputUrl:outputUrl(body.output)};
   if(status==='failed'||status==='canceled') throw new Error(`replicate_start_${status}:${body.error||''}`);
+  if(!body.id) throw new Error(`replicate_missing_prediction_id:${JSON.stringify(body)}`);
   return {providerJobId:String(body.id),status:'processing'};
 }
 
