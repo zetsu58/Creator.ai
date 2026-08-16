@@ -1,0 +1,17 @@
+name: Runner Smoke Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Runner alive
+        run: |
+          echo "runner-ok"
+          uname -a
+          pwd
