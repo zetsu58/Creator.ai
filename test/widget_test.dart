@@ -31,7 +31,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Kredi Merkezi'), findsOneWidget);
+    expect(find.byKey(const Key('credit_wallet_page')), findsOneWidget);
     expect(find.text('100'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
