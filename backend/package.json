@@ -1,12 +1,14 @@
 {
   "name": "veyra-ai-backend",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:v2": "tsx watch src/index_v2.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "start:v2": "node dist/index_v2.js",
     "test": "node --test",
     "smoke": "node scripts/smoke.mjs"
   },
