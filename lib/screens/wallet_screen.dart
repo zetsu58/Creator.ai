@@ -138,6 +138,7 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const Key('credit_wallet_page'),
       appBar: AppBar(title: Text(t('Kredi Merkezi', 'Credit Center'))),
       body: RefreshIndicator(
         onRefresh: _load,
