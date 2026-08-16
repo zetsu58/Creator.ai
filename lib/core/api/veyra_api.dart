@@ -9,10 +9,15 @@ class VeyraApi {
 
   static const String baseUrl = String.fromEnvironment(
     'VEYRA_API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080',
+    defaultValue: '',
   );
 
-  Uri _uri(String path) => Uri.parse('$baseUrl$path');
+  bool get configured => baseUrl.trim().isNotEmpty;
+
+  Uri _uri(String path) {
+    if (!configured) throw Exception('VEYRA_API_BASE_URL yapılandırılmadı');
+    return Uri.parse('$baseUrl$path');
+  }
 
   Future<Map<String, dynamic>> _json(http.Response response, {int? expected}) async {
     final body = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body) as Map<String, dynamic>;
@@ -26,8 +31,9 @@ class VeyraApi {
   }
 
   Future<bool> health() async {
+    if (!configured) return false;
     try {
-      final response = await _client.get(_uri('/health')).timeout(const Duration(seconds: 5));
+      final response = await _client.get(_uri('/health')).timeout(const Duration(seconds: 6));
       if (response.statusCode != 200) return false;
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       return body['ok'] == true;
@@ -36,44 +42,38 @@ class VeyraApi {
     }
   }
 
-  Future<Map<String, dynamic>> legalLinks() async => _json(await _client.get(_uri('/v1/legal')), expected: 200);
+  Future<Map<String, dynamic>> wallet(String userId) async {
+    return _json(await _client.get(_uri('/v1/users/$userId/wallet')), expected: 200);
+  }
 
   Future<int> walletCredits(String userId) async {
-    final body = await _json(await _client.get(_uri('/v1/users/$userId/wallet')), expected: 200);
+    final body = await wallet(userId);
     return (body['credits'] as num).toInt();
+  }
+
+  Future<List<Map<String, dynamic>>> walletLedger(String userId) async {
+    final body = await _json(await _client.get(_uri('/v1/users/$userId/wallet/ledger')), expected: 200);
+    final items = body['items'] as List<dynamic>? ?? const [];
+    return items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> storeProducts() async {
+    return _json(await _client.get(_uri('/v1/store/products')), expected: 200);
+  }
+
+  Future<List<Map<String, dynamic>>> purchases(String userId) async {
+    final body = await _json(await _client.get(_uri('/v1/users/$userId/purchases')), expected: 200);
+    final items = body['items'] as List<dynamic>? ?? const [];
+    return items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
   Future<List<Map<String, dynamic>>> userGenerations(String userId) async {
     final body = await _json(await _client.get(_uri('/v1/users/$userId/generations')), expected: 200);
-    final items = (body['items'] as List<dynamic>? ?? const []);
+    final items = body['items'] as List<dynamic>? ?? const [];
     return items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
-  Future<Map<String, dynamic>> deleteAccount(String userId) async {
-    final response = await _client.delete(
-      _uri('/v1/users/$userId'),
-      headers: {'content-type': 'application/json'},
-      body: jsonEncode({'confirm': 'DELETE'}),
-    );
-    return _json(response, expected: 200);
-  }
-
-  Future<Map<String, dynamic>> moderatePrompt(String prompt) async {
-    final response = await _client.post(
-      _uri('/v1/moderation/check'),
-      headers: {'content-type': 'application/json'},
-      body: jsonEncode({'prompt': prompt}),
-    );
-    return _json(response, expected: 200);
-  }
-
-  Future<int> quote({
-    required String type,
-    int seconds = 0,
-    String quality = 'fast',
-    bool audio = false,
-    bool draft = false,
-  }) async {
+  Future<int> quote({required String type, int seconds = 0, String quality = 'fast', bool audio = false, bool draft = false}) async {
     final response = await _client.post(
       _uri('/v1/quote'),
       headers: {'content-type': 'application/json'},
@@ -95,7 +95,6 @@ class VeyraApi {
     List<String> references = const [],
     bool brandKit = false,
     bool captions = false,
-    String? integrityToken,
   }) async {
     final response = await _client.post(
       _uri('/v1/generations'),
@@ -112,67 +111,20 @@ class VeyraApi {
         'references': references,
         'brandKit': brandKit,
         'captions': captions,
-        if (integrityToken != null) 'integrityToken': integrityToken,
       }),
     );
     return _json(response, expected: 202);
   }
 
-  Future<Map<String, dynamic>> generation(String id) async {
-    return _json(await _client.get(_uri('/v1/generations/$id')), expected: 200);
-  }
+  Future<Map<String, dynamic>> generation(String id) async => _json(await _client.get(_uri('/v1/generations/$id')), expected: 200);
 
-  Future<Map<String, dynamic>> reportGeneration({
-    required String id,
-    required String userId,
-    required String reason,
-    String details = '',
-  }) async {
+  Future<Map<String, dynamic>> reportGeneration({required String id, required String userId, required String reason, String details = ''}) async {
     final response = await _client.post(
       _uri('/v1/generations/$id/report'),
       headers: {'content-type': 'application/json'},
       body: jsonEncode({'userId': userId, 'reason': reason, 'details': details}),
     );
     return _json(response, expected: 201);
-  }
-
-  Future<Map<String, dynamic>> verifyPlayIntegrity({required String userId, required String token}) async {
-    final response = await _client.post(
-      _uri('/v1/integrity/google-play'),
-      headers: {'content-type': 'application/json'},
-      body: jsonEncode({'userId': userId, 'token': token}),
-    );
-    return _json(response);
-  }
-
-  Future<Map<String, dynamic>> verifyGooglePurchase({
-    required String userId,
-    required String productId,
-    required String transactionId,
-    required String purchaseToken,
-    required int credits,
-  }) async {
-    final response = await _client.post(
-      _uri('/v1/purchases/google/verify'),
-      headers: {'content-type': 'application/json'},
-      body: jsonEncode({'userId': userId, 'productId': productId, 'transactionId': transactionId, 'purchaseToken': purchaseToken, 'credits': credits}),
-    );
-    return _json(response);
-  }
-
-  Future<Map<String, dynamic>> verifyApplePurchase({
-    required String userId,
-    required String productId,
-    required String transactionId,
-    required String purchaseToken,
-    required int credits,
-  }) async {
-    final response = await _client.post(
-      _uri('/v1/purchases/apple/verify'),
-      headers: {'content-type': 'application/json'},
-      body: jsonEncode({'userId': userId, 'productId': productId, 'transactionId': transactionId, 'purchaseToken': purchaseToken, 'credits': credits}),
-    );
-    return _json(response);
   }
 
   Future<Map<String, dynamic>> copilotPlan({required String userId, required String message, String? projectId}) async {
@@ -184,9 +136,7 @@ class VeyraApi {
     return _json(response, expected: 200);
   }
 
-  Future<Map<String, dynamic>> brandKit(String userId) async {
-    return _json(await _client.get(_uri('/v1/business/$userId/brand-kit')), expected: 200);
-  }
+  Future<Map<String, dynamic>> brandKit(String userId) async => _json(await _client.get(_uri('/v1/business/$userId/brand-kit')), expected: 200);
 
   Future<Map<String, dynamic>> saveBrandKit({required String userId, required String name, required List<String> colors, String slogan = ''}) async {
     final response = await _client.put(
@@ -203,6 +153,11 @@ class VeyraApi {
       headers: {'content-type': 'application/json'},
       body: jsonEncode({'userId': userId, 'count': count, 'operation': operation}),
     );
+    return _json(response, expected: 202);
+  }
+
+  Future<Map<String, dynamic>> deleteAccount(String userId) async {
+    final response = await _client.delete(_uri('/v1/users/$userId'));
     return _json(response, expected: 202);
   }
 
