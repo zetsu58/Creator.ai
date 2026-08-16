@@ -55,7 +55,7 @@ function modelFor(job:GenerationJob) {
 }
 
 function hfModelFor(job:GenerationJob) {
-  if (job.type==='video' || job.type==='product_ad') return process.env.HF_VIDEO_MODEL?.trim() || 'Wan-AI/Wan2.1-T2V-1.3B';
+  if (job.type==='video' || job.type==='product_ad') return process.env.HF_VIDEO_MODEL?.trim() || 'Lightricks/LTX-Video-0.9.8-13B-distilled';
   return process.env.HF_IMAGE_MODEL?.trim() || 'black-forest-labs/FLUX.1-schnell';
 }
 
@@ -149,7 +149,7 @@ export function providerDiagnostics() {
     fallback: fallbackProvider(),
     hfTokenPresent: Boolean(hfToken()),
     hfInferenceProvider: hfProvider(),
-    hfVideoModel: process.env.HF_VIDEO_MODEL?.trim() || 'Wan-AI/Wan2.1-T2V-1.3B',
+    hfVideoModel: process.env.HF_VIDEO_MODEL?.trim() || 'Lightricks/LTX-Video-0.9.8-13B-distilled',
     hfImageModel: process.env.HF_IMAGE_MODEL?.trim() || 'black-forest-labs/FLUX.1-schnell',
     replicateTokenPresent: Boolean(replicateToken()),
     videoModel: process.env.REPLICATE_VIDEO_MODEL?.trim() || 'prunaai/p-video',
