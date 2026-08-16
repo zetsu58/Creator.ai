@@ -59,6 +59,12 @@ const tools = <ToolSpec>[
   ToolSpec(titleKey: 'scene_title', subtitleKey: 'scene_sub', type: 'video', icon: Icons.view_timeline_outlined, colors: [Color(0xFF3B4EC7), Color(0xFF6D7CFF)], isVideo: true),
 ];
 
+int _intValue(dynamic value, [int fallback = 0]) {
+  if (value is num) return value.toInt();
+  if (value is String) return num.tryParse(value)?.toInt() ?? fallback;
+  return fallback;
+}
+
 class CreatorHome extends StatefulWidget {
   const CreatorHome({super.key});
   @override
@@ -128,7 +134,7 @@ class _CreatorHomeState extends State<CreatorHome> {
     if (online && session.signedIn) {
       try {
         final wallet = await api.wallet(userId);
-        nextCredits = (wallet['credits'] as num?)?.toInt() ?? nextCredits;
+        nextCredits = _intValue(wallet['credits'], nextCredits);
         nextPlan = '${wallet['plan'] ?? nextPlan}';
         final cloudJobs = await api.userGenerations(userId);
         jobs
@@ -190,7 +196,7 @@ class _CreatorHomeState extends State<CreatorHome> {
     final pages = <Widget>[
       StudioHome(credits: credits, backendOnline: backendOnline, checkingBackend: checkingBackend, onRefresh: _refreshBackend, onOpenTool: _openTool, onWallet: _openWallet),
       AllToolsPage(onOpenTool: _openTool),
-      ProjectsPage(jobs: jobs, api: api),
+      ProjectsPage(jobs: jobs, api: api, onCloudChanged: _refreshBackend),
       ProfilePage(userId: userId, plan: plan, credits: credits, backendOnline: backendOnline, projectCount: jobs.length, onWallet: _openWallet, onRefresh: _refreshBackend),
     ];
     final labels = [vt(context, 'studio'), vt(context, 'tools'), vt(context, 'projects'), vt(context, 'profile')];
@@ -554,39 +560,133 @@ class AllToolsPage extends StatelessWidget {
 }
 
 class ProjectsPage extends StatefulWidget {
-  const ProjectsPage({super.key, required this.jobs, required this.api});
+  const ProjectsPage({super.key, required this.jobs, required this.api, required this.onCloudChanged});
   final List<Map<String, dynamic>> jobs;
   final VeyraApi api;
+  final Future<void> Function() onCloudChanged;
   @override
   State<ProjectsPage> createState() => _ProjectsPageState();
 }
 
 class _ProjectsPageState extends State<ProjectsPage> {
+  String _t(String tr, String en) => Localizations.localeOf(context).languageCode == 'tr' ? tr : en;
+
   Future<void> _refreshJob(int i) async {
     try {
       final updated = await widget.api.generation('${widget.jobs[i]['id']}');
       if (mounted) setState(() => widget.jobs[i] = updated);
+      await widget.onCloudChanged();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${vt(context, 'status_failed')}: $e')));
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    for (var i = 0; i < widget.jobs.length; i++) {
+      try {
+        final updated = await widget.api.generation('${widget.jobs[i]['id']}');
+        if (mounted) setState(() => widget.jobs[i] = updated);
+      } catch (_) {}
+    }
+    await widget.onCloudChanged();
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'completed': return Colors.greenAccent;
+      case 'processing': return CreatorTheme.cyan;
+      case 'refunded': return Colors.orangeAccent;
+      case 'failed': return Colors.redAccent;
+      default: return Colors.white60;
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'completed': return Icons.check_circle_outline;
+      case 'processing': return Icons.timelapse;
+      case 'refunded': return Icons.currency_exchange;
+      case 'failed': return Icons.error_outline;
+      default: return Icons.auto_awesome;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.jobs.isEmpty) return Center(child: Padding(padding: const EdgeInsets.all(30), child: Text(vt(context, 'no_projects'))));
-    return ListView(padding: const EdgeInsets.all(20), children: [
-      Text(vt(context, 'projects'), style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 14),
-      for (var i = 0; i < widget.jobs.length; i++) Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Card(child: ListTile(
-          leading: const Icon(Icons.auto_awesome),
-          title: Text('${widget.jobs[i]['type'] ?? 'AI'} • ${widget.jobs[i]['status'] ?? 'unknown'}', style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text('${widget.jobs[i]['prompt'] ?? ''}', maxLines: 2, overflow: TextOverflow.ellipsis),
-          trailing: IconButton(icon: const Icon(Icons.refresh), onPressed: () => _refreshJob(i)),
-        )),
-      ),
-    ]);
+    return RefreshIndicator(
+      onRefresh: _refreshAll,
+      child: ListView(padding: const EdgeInsets.all(20), children: [
+        Row(children: [
+          Expanded(child: Text(vt(context, 'projects'), style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w900))),
+          IconButton(onPressed: _refreshAll, icon: const Icon(Icons.refresh)),
+        ]),
+        const SizedBox(height: 14),
+        for (var i = 0; i < widget.jobs.length; i++) Builder(builder: (context) {
+          final item = widget.jobs[i];
+          final status = '${item['status'] ?? 'unknown'}';
+          final failureCode = '${item['failureCode'] ?? ''}'.trim();
+          final failureMessage = '${item['failureMessage'] ?? ''}'.trim();
+          final outputUrl = '${item['outputUrl'] ?? ''}'.trim();
+          final provider = '${item['provider'] ?? ''}'.trim();
+          final cost = _intValue(item['cost']);
+          final terminalFailure = status == 'refunded' || status == 'failed';
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(_statusIcon(status), color: _statusColor(status), size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('${item['type'] ?? 'AI'} • $status', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 5),
+                      Text('${item['prompt'] ?? ''}', maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70)),
+                    ])),
+                    IconButton(icon: const Icon(Icons.refresh), onPressed: () => _refreshJob(i)),
+                  ]),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    if (provider.isNotEmpty) Chip(label: Text(provider)),
+                    if (cost > 0) Chip(label: Text(terminalFailure ? '${_t('İade', 'Refund')}: $cost' : '${_t('Maliyet', 'Cost')}: $cost')),
+                    if (item['seconds'] != null && _intValue(item['seconds']) > 0) Chip(label: Text('${_intValue(item['seconds'])} sn')),
+                    if ('${item['aspectRatio'] ?? ''}'.isNotEmpty) Chip(label: Text('${item['aspectRatio']}')),
+                  ]),
+                  if (terminalFailure && (failureCode.isNotEmpty || failureMessage.isNotEmpty)) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.orange.withValues(alpha: .08), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.orangeAccent.withValues(alpha: .28))),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(_t('Üretim başarısız oldu, kredi otomatik iade edildi.', 'Generation failed and credits were automatically refunded.'), style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.orangeAccent)),
+                        if (failureCode.isNotEmpty) ...[const SizedBox(height: 6), Text('Kod: $failureCode', style: const TextStyle(fontSize: 12, color: Colors.white70))],
+                        if (failureMessage.isNotEmpty) ...[const SizedBox(height: 4), SelectableText(failureMessage, style: const TextStyle(fontSize: 12, color: Colors.white70))],
+                      ]),
+                    ),
+                  ],
+                  if (status == 'completed' && outputUrl.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.green.withValues(alpha: .07), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.greenAccent.withValues(alpha: .22))),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(_t('Üretim tamamlandı', 'Generation completed'), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.greenAccent)),
+                        const SizedBox(height: 6),
+                        SelectableText(outputUrl, maxLines: 3, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                      ]),
+                    ),
+                  ],
+                ]),
+              ),
+            ),
+          );
+        }),
+      ]),
+    );
   }
 }
 
