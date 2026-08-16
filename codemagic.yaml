@@ -10,40 +10,52 @@ workflows:
         script: |
           git rev-parse HEAD
           git log -1 --oneline
-          sed -n '1,80p' test/widget_test.dart
+          sed -n '1,100p' test/widget_test.dart
       - name: Bootstrap Android
-        script: |
-          flutter create --platforms=android --org ai.veyra --project-name creator_ai .
-      - name: Configure Veyra Android
+        script: flutter create --platforms=android --org ai.veyra --project-name creator_ai .
+      - name: Configure Veyra Android API 36
         script: |
           python3 - <<'PY'
-          import os
+          import os, re
           from pathlib import Path
 
           for name in ['android/app/build.gradle.kts','android/app/build.gradle']:
               p=Path(name)
-              if p.exists():
-                  s=p.read_text()
-                  s=s.replace('minSdk = flutter.minSdkVersion','minSdk = 24')
-                  s=s.replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24')
-                  p.write_text(s)
+              if not p.exists(): continue
+              s=p.read_text()
+              s=s.replace('compileSdk = flutter.compileSdkVersion','compileSdk = 36')
+              s=s.replace('compileSdkVersion flutter.compileSdkVersion','compileSdkVersion 36')
+              s=s.replace('targetSdk = flutter.targetSdkVersion','targetSdk = 36')
+              s=s.replace('targetSdkVersion flutter.targetSdkVersion','targetSdkVersion 36')
+              s=s.replace('minSdk = flutter.minSdkVersion','minSdk = 24')
+              s=s.replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24')
+              s=re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "ai.veyra.app"', s)
+              s=re.sub(r'applicationId\s+"[^"]+"', 'applicationId "ai.veyra.app"', s)
+              p.write_text(s)
 
           manifest=Path('android/app/src/main/AndroidManifest.xml')
           if manifest.exists():
-              s=manifest.read_text()
-              s=s.replace('android:label="creator_ai"','android:label="Veyra AI"')
+              s=manifest.read_text().replace('android:label="creator_ai"','android:label="Veyra AI"')
               app_id=os.getenv('ADMOB_ANDROID_APP_ID','ca-app-pub-3940256099942544~3347511713')
-              marker='com.google.android.gms.ads.APPLICATION_ID'
-              if marker not in s:
-                  meta=f'''\n        <meta-data\n            android:name="com.google.android.gms.ads.APPLICATION_ID"\n            android:value="{app_id}" />\n'''
-                  s=s.replace('</application>', meta + '    </application>')
+              if 'com.google.android.gms.ads.APPLICATION_ID' not in s:
+                  s=s.replace('</application>', f'''\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="{app_id}" />\n    </application>''')
               manifest.write_text(s)
-              print(f'AdMob Android App ID configured: {app_id[:18]}...')
+
+          # Professional Veyra adaptive icon using native vector drawables.
+          values=Path('android/app/src/main/res/values'); values.mkdir(parents=True, exist_ok=True)
+          (values/'colors.xml').write_text('''<?xml version="1.0" encoding="utf-8"?><resources><color name="veyra_icon_bg">#090B12</color></resources>''')
+          drawable=Path('android/app/src/main/res/drawable'); drawable.mkdir(parents=True, exist_ok=True)
+          (drawable/'ic_veyra_foreground.xml').write_text('''<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#8B5CF6" android:pathData="M22,20 L44,20 L54,47 L64,20 L86,20 L62,79 L46,79 Z"/><path android:fillColor="#55D6FF" android:pathData="M54,47 L64,20 L86,20 L62,79 Z"/><path android:fillColor="#FFD76A" android:pathData="M79,18 L82,25 L89,28 L82,31 L79,38 L76,31 L69,28 L76,25 Z"/></vector>''')
+          for folder in ['mipmap-anydpi-v26','mipmap-anydpi']:
+              d=Path('android/app/src/main/res')/folder; d.mkdir(parents=True, exist_ok=True)
+              (d/'ic_launcher.xml').write_text('''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/veyra_icon_bg"/><foreground android:drawable="@drawable/ic_veyra_foreground"/></adaptive-icon>''')
           PY
-      - name: Verify Android manifest
+      - name: Verify Android release prerequisites
         script: |
+          grep -R "compileSdk = 36\|compileSdkVersion 36" android/app/build.gradle* || true
+          grep -R "targetSdk = 36\|targetSdkVersion 36" android/app/build.gradle* || true
+          grep -R "ai.veyra.app" android/app/build.gradle* || true
           grep -n "com.google.android.gms.ads.APPLICATION_ID" android/app/src/main/AndroidManifest.xml
-          grep -n "Veyra AI" android/app/src/main/AndroidManifest.xml
       - name: Install dependencies
         script: flutter pub get
       - name: Analyze
@@ -59,6 +71,51 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/app-debug.apk
 
+  veyra_android_aab_rc:
+    name: Veyra AI Android AAB RC
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.44.7
+    scripts:
+      - name: Bootstrap Android
+        script: flutter create --platforms=android --org ai.veyra --project-name creator_ai .
+      - name: Configure API 36 release candidate
+        script: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          p=Path('android/app/build.gradle.kts') if Path('android/app/build.gradle.kts').exists() else Path('android/app/build.gradle')
+          s=p.read_text()
+          s=s.replace('compileSdk = flutter.compileSdkVersion','compileSdk = 36').replace('compileSdkVersion flutter.compileSdkVersion','compileSdkVersion 36')
+          s=s.replace('targetSdk = flutter.targetSdkVersion','targetSdk = 36').replace('targetSdkVersion flutter.targetSdkVersion','targetSdkVersion 36')
+          s=s.replace('minSdk = flutter.minSdkVersion','minSdk = 24').replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24')
+          s=re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "ai.veyra.app"', s)
+          s=re.sub(r'applicationId\s+"[^"]+"', 'applicationId "ai.veyra.app"', s)
+          p.write_text(s)
+          m=Path('android/app/src/main/AndroidManifest.xml')
+          ms=m.read_text().replace('android:label="creator_ai"','android:label="Veyra AI"')
+          aid=os.getenv('ADMOB_ANDROID_APP_ID','ca-app-pub-3940256099942544~3347511713')
+          if 'com.google.android.gms.ads.APPLICATION_ID' not in ms:
+              ms=ms.replace('</application>', f'<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="{aid}" /></application>')
+          m.write_text(ms)
+          PY
+      - name: Install dependencies
+        script: flutter pub get
+      - name: Analyze and test
+        script: |
+          flutter analyze --no-fatal-infos
+          flutter test
+      - name: Build release candidate AAB
+        script: flutter build appbundle --release
+      - name: Verify AAB
+        script: |
+          test -f build/app/outputs/bundle/release/app-release.aab
+          shasum -a 256 build/app/outputs/bundle/release/app-release.aab
+          echo "NOTE: RC AAB is for validation. Production Play signing configuration must be completed in Play Console/Codemagic before submission."
+    artifacts:
+      - build/app/outputs/bundle/release/app-release.aab
+
   creatorai_web:
     name: Veyra AI Web
     max_build_duration: 45
@@ -66,10 +123,6 @@ workflows:
     environment:
       flutter: 3.44.7
     scripts:
-      - name: Source revision
-        script: |
-          git rev-parse HEAD
-          git log -1 --oneline
       - name: Bootstrap Web
         script: flutter create --platforms=web --org ai.veyra --project-name creator_ai .
       - name: Configure Veyra Web
@@ -77,20 +130,16 @@ workflows:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('web/index.html')
-          if p.exists():
-              s=p.read_text().replace('<title>creator_ai</title>','<title>Veyra AI</title>')
-              p.write_text(s)
+          if p.exists(): p.write_text(p.read_text().replace('<title>creator_ai</title>','<title>Veyra AI</title>'))
           p=Path('web/manifest.json')
-          if p.exists():
-              s=p.read_text().replace('"name": "creator_ai"','"name": "Veyra AI"').replace('"short_name": "creator_ai"','"short_name": "Veyra AI"')
-              p.write_text(s)
+          if p.exists(): p.write_text(p.read_text().replace('"name": "creator_ai"','"name": "Veyra AI"').replace('"short_name": "creator_ai"','"short_name": "Veyra AI"'))
           PY
       - name: Install dependencies
         script: flutter pub get
-      - name: Analyze
-        script: flutter analyze --no-fatal-infos
-      - name: Test
-        script: flutter test
+      - name: Analyze and test
+        script: |
+          flutter analyze --no-fatal-infos
+          flutter test
       - name: Build Web release
         script: flutter build web --release
     artifacts:
@@ -105,10 +154,6 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Source revision
-        script: |
-          git rev-parse HEAD
-          git log -1 --oneline
       - name: Bootstrap iOS
         script: flutter create --platforms=ios --org ai.veyra --project-name creator_ai .
       - name: Configure Veyra iOS
@@ -121,22 +166,18 @@ workflows:
               s=p.read_text().replace('<string>creator_ai</string>','<string>Veyra AI</string>')
               app_id=os.getenv('ADMOB_IOS_APP_ID','ca-app-pub-3940256099942544~1458002511')
               if 'GADApplicationIdentifier' not in s:
-                  insert=f'''\n\t<key>GADApplicationIdentifier</key>\n\t<string>{app_id}</string>\n'''
-                  s=s.replace('</dict>', insert + '</dict>')
+                  s=s.replace('</dict>', f'\n\t<key>GADApplicationIdentifier</key>\n\t<string>{app_id}</string>\n</dict>')
               p.write_text(s)
-              print(f'AdMob iOS App ID configured: {app_id[:18]}...')
           PY
       - name: Install dependencies
         script: flutter pub get
       - name: Install CocoaPods
         script: |
-          cd ios
-          pod install
-          cd ..
-      - name: Analyze
-        script: flutter analyze --no-fatal-infos
-      - name: Test
-        script: flutter test
+          cd ios && pod install && cd ..
+      - name: Analyze and test
+        script: |
+          flutter analyze --no-fatal-infos
+          flutter test
       - name: Build iOS simulator app
         script: flutter build ios --simulator --debug --no-codesign
     artifacts:
