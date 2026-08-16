@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api/veyra_api.dart';
+import 'core/auth/veyra_session.dart';
 import 'core/design/creator_theme.dart';
 import 'core/localization/veyra_locale.dart';
 import 'screens/wallet_screen.dart';
@@ -65,27 +66,66 @@ class CreatorHome extends StatefulWidget {
 }
 
 class _CreatorHomeState extends State<CreatorHome> {
-  static const userId = 'veyra-test-user';
   final api = VeyraApi();
+  final session = VeyraSession.instance;
   final jobs = <Map<String, dynamic>>[];
   int index = 0;
   int credits = 100;
   String plan = 'free';
+  String userId = 'local-preview-user';
   bool backendOnline = false;
   bool checkingBackend = true;
+  bool sessionReady = false;
 
   @override
   void initState() {
     super.initState();
-    _refreshBackend();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await session.load(api);
+    if (api.configured) {
+      await session.ensureCloudSession(api);
+    }
+    if (!mounted) return;
+    setState(() {
+      userId = session.userId ?? userId;
+      sessionReady = session.signedIn || !api.configured;
+    });
+    await _refreshBackend();
+  }
+
+  Future<bool> _ensureSession() async {
+    if (!api.configured) return false;
+    if (session.signedIn) {
+      api.setToken(session.token);
+      if (session.userId != null && userId != session.userId) {
+        if (mounted) setState(() => userId = session.userId!);
+      }
+      return true;
+    }
+    final ok = await session.ensureCloudSession(api);
+    if (ok && mounted) {
+      setState(() {
+        userId = session.userId ?? userId;
+        sessionReady = true;
+      });
+    }
+    return ok;
   }
 
   Future<void> _refreshBackend() async {
     if (mounted) setState(() => checkingBackend = true);
-    final online = await api.health();
+    var online = await api.health();
+    if (online) {
+      final authed = await _ensureSession();
+      online = authed || !api.configured;
+    }
+
     var nextCredits = credits;
     var nextPlan = plan;
-    if (online) {
+    if (online && session.signedIn) {
       try {
         final wallet = await api.wallet(userId);
         nextCredits = (wallet['credits'] as num?)?.toInt() ?? nextCredits;
@@ -94,18 +134,26 @@ class _CreatorHomeState extends State<CreatorHome> {
         jobs
           ..clear()
           ..addAll(cloudJobs);
-      } catch (_) {}
+      } catch (_) {
+        online = false;
+      }
     }
     if (!mounted) return;
     setState(() {
       backendOnline = online;
       credits = nextCredits;
       plan = nextPlan;
+      sessionReady = session.signedIn || !api.configured;
       checkingBackend = false;
     });
   }
 
   Future<void> _openWallet() async {
+    if (api.configured && !await _ensureSession()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veyra Cloud oturumu oluşturulamadı.')));
+      return;
+    }
+    if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CreditWalletPage(
       api: api,
       userId: userId,
@@ -117,6 +165,11 @@ class _CreatorHomeState extends State<CreatorHome> {
   }
 
   Future<void> _openTool(ToolSpec tool) async {
+    if (api.configured && !await _ensureSession()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veyra Cloud oturumu oluşturulamadı.')));
+      return;
+    }
+    if (!mounted) return;
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => ToolStudioPage(tool: tool, userId: userId, credits: credits, api: api, onWallet: _openWallet)),
     );
