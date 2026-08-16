@@ -24,6 +24,20 @@ services:
         value: mock
       - key: AI_PROVIDER_FALLBACK
         value: mock
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: REPLICATE_VIDEO_MODEL
+        sync: false
+      - key: REPLICATE_IMAGE_MODEL
+        sync: false
+      - key: REPLICATE_PROMPT_FIELD
+        value: prompt
+      - key: REPLICATE_ASPECT_RATIO_FIELD
+        value: aspect_ratio
+      - key: REPLICATE_DURATION_FIELD
+        value: duration
+      - key: REPLICATE_AUDIO_FIELD
+        value: generate_audio
       - key: DATABASE_URL
         fromDatabase:
           name: veyra-postgres
