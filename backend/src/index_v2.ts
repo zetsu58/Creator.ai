@@ -157,7 +157,7 @@ function quoteCost(input:z.infer<typeof quoteSchema>){
 
 app.get('/health',async(_req,res)=>{
   const db=await databaseHealth();
-  res.json({ok:true,service:'veyra-ai-backend',version:'0.6.0-v2',uptimeSeconds:Math.floor((Date.now()-startedAt)/1000),database:db,sessions:{configured:sessionsConfigured(),required:requireAuth},providers:{primary:process.env.AI_PROVIDER_PRIMARY||'mock',fallback:process.env.AI_PROVIDER_FALLBACK||'mock'},capabilities:['auth','credits','wallet','generation','projects','payments','moderation','reports','admin']});
+  res.json({ok:true,service:'veyra-ai-backend',version:'0.6.1-v2',uptimeSeconds:Math.floor((Date.now()-startedAt)/1000),database:db,sessions:{configured:sessionsConfigured(),required:requireAuth},providers:{primary:process.env.AI_PROVIDER_PRIMARY||'mock',fallback:process.env.AI_PROVIDER_FALLBACK||'mock'},capabilities:['auth','credits','wallet','generation','projects','payments','moderation','reports','admin']});
 });
 
 app.post('/v1/auth/anonymous',async(req,res)=>{
@@ -186,7 +186,7 @@ app.get('/v1/users/:userId/wallet/ledger',async(req,res)=>{
 app.get('/v1/users/:userId/generations',async(req,res)=>{
   const id=req.params.userId; if(!canAccess(req,id)) return res.status(401).json({error:'unauthorized'});
   if(!pool) return res.json({items:[...memJobs.values()].filter(j=>j.userId===id).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))});
-  const r=await pool.query('select id,kind as type,prompt,status,quality,aspect_ratio as "aspectRatio",duration_seconds as seconds,audio,provider,credits_reserved as cost,output_url as "outputUrl",created_at as "createdAt",completed_at as "completedAt" from generation_jobs where user_id=$1 order by created_at desc limit 100',[id]); res.json({items:r.rows});
+  const r=await pool.query('select id,kind as type,prompt,status,quality,aspect_ratio as "aspectRatio",duration_seconds as seconds,audio,provider,credits_reserved as cost,output_url as "outputUrl",failure_code as "failureCode",failure_message as "failureMessage",refunded_at as "refundedAt",created_at as "createdAt",completed_at as "completedAt" from generation_jobs where user_id=$1 order by created_at desc limit 100',[id]); res.json({items:r.rows});
 });
 
 app.post('/v1/quote',(req,res)=>{const p=quoteSchema.safeParse(req.body);if(!p.success)return res.status(400).json({error:'invalid_request',details:p.error.flatten()});res.json({credits:quoteCost(p.data),currency:'VEYRA_CREDIT'});});
@@ -209,7 +209,7 @@ app.post('/v1/generations',async(req,res)=>{
 
 app.get('/v1/generations/:id',async(req,res)=>{
   if(!pool){const j=memJobs.get(req.params.id);if(!j)return res.status(404).json({error:'not_found'});if(!canAccess(req,j.userId))return res.status(401).json({error:'unauthorized'});return res.json(j);}
-  const r=await pool.query('select id,user_id as "userId",kind as type,prompt,status,quality,aspect_ratio as "aspectRatio",duration_seconds as seconds,audio,provider,credits_reserved as cost,output_url as "outputUrl",created_at as "createdAt",completed_at as "completedAt",refunded_at as "refundedAt" from generation_jobs where id=$1',[req.params.id]);if(!r.rowCount)return res.status(404).json({error:'not_found'});const j=r.rows[0];if(!canAccess(req,j.userId))return res.status(401).json({error:'unauthorized'});res.json(j);
+  const r=await pool.query('select id,user_id as "userId",kind as type,prompt,status,quality,aspect_ratio as "aspectRatio",duration_seconds as seconds,audio,provider,credits_reserved as cost,output_url as "outputUrl",failure_code as "failureCode",failure_message as "failureMessage",provider_job_id as "providerJobId",created_at as "createdAt",completed_at as "completedAt",refunded_at as "refundedAt" from generation_jobs where id=$1',[req.params.id]);if(!r.rowCount)return res.status(404).json({error:'not_found'});const j=r.rows[0];if(!canAccess(req,j.userId))return res.status(401).json({error:'unauthorized'});res.json(j);
 });
 
 app.post('/v1/generations/:id/report',async(req,res)=>{
