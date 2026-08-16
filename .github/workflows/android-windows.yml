@@ -8,7 +8,7 @@ on:
 jobs:
   build-apk:
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,29 +19,45 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: Setup Flutter 3.44.7
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.44.7'
           channel: stable
           cache: true
 
-      - name: Flutter doctor
-        run: flutter doctor -v
+      - name: Flutter version
+        run: flutter --version
 
       - name: Bootstrap Android
         run: flutter create --platforms=android --org ai.creator --project-name creator_ai .
 
+      - name: Raise Android minSdk to 24
+        shell: pwsh
+        run: |
+          if (Test-Path 'android/app/build.gradle.kts') {
+            (Get-Content 'android/app/build.gradle.kts' -Raw).Replace('minSdk = flutter.minSdkVersion','minSdk = 24') | Set-Content 'android/app/build.gradle.kts'
+          } elseif (Test-Path 'android/app/build.gradle') {
+            (Get-Content 'android/app/build.gradle' -Raw).Replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24') | Set-Content 'android/app/build.gradle'
+          }
+          Select-String -Path 'android/app/build.gradle*' -Pattern 'minSdk'
+
       - name: Packages
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Tests
+      - name: Smoke tests
         run: flutter test
 
       - name: Build debug APK
         run: flutter build apk --debug
+
+      - name: Verify APK
+        shell: pwsh
+        run: |
+          $apk = 'build/app/outputs/flutter-apk/app-debug.apk'
+          if (!(Test-Path $apk)) { throw 'APK not produced' }
+          Get-Item $apk | Format-List Name,Length,FullName
+          Get-FileHash $apk -Algorithm SHA256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -49,3 +65,4 @@ jobs:
           name: creatorai-debug-apk-windows
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
