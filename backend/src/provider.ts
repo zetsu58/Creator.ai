@@ -23,9 +23,19 @@ function outputUrl(value:any): string|null {
   return null;
 }
 
+function providerName() {
+  const explicit=process.env.AI_PROVIDER_PRIMARY?.trim().toLowerCase();
+  if (explicit) return explicit;
+  // If a Replicate token exists, Replicate is the sensible production default.
+  if (process.env.REPLICATE_API_TOKEN?.trim()) return 'replicate';
+  return 'mock';
+}
+
 function modelFor(job:GenerationJob) {
-  if (job.type==='video' || job.type==='product_ad') return process.env.REPLICATE_VIDEO_MODEL?.trim() || 'prunaai/p-video';
-  return process.env.REPLICATE_IMAGE_MODEL?.trim() || '';
+  if (job.type==='video' || job.type==='product_ad') {
+    return process.env.REPLICATE_VIDEO_MODEL?.trim() || 'prunaai/p-video';
+  }
+  return process.env.REPLICATE_IMAGE_MODEL?.trim() || 'google/imagen-4-fast';
 }
 
 function replicateInput(job:GenerationJob) {
@@ -33,7 +43,7 @@ function replicateInput(job:GenerationJob) {
   input[process.env.REPLICATE_PROMPT_FIELD || 'prompt']=job.prompt;
 
   // Provider schemas differ. Optional fields are only sent when their mapping
-  // has explicitly been configured in Render, preventing 422 schema errors.
+  // has explicitly been configured in Render, preventing schema mismatches.
   const aspectField=process.env.REPLICATE_ASPECT_RATIO_FIELD?.trim();
   if (job.aspectRatio && aspectField) input[aspectField]=job.aspectRatio;
 
@@ -58,15 +68,22 @@ async function replicateRequest(path:string, init?:RequestInit) {
   return body;
 }
 
+export function providerDiagnostics() {
+  return {
+    provider: providerName(),
+    replicateTokenPresent: Boolean(process.env.REPLICATE_API_TOKEN?.trim()),
+    videoModel: process.env.REPLICATE_VIDEO_MODEL?.trim() || 'prunaai/p-video',
+    imageModel: process.env.REPLICATE_IMAGE_MODEL?.trim() || 'google/imagen-4-fast',
+  };
+}
+
 export function providerConfigured() {
-  const provider=(process.env.AI_PROVIDER_PRIMARY||'mock').toLowerCase();
-  if(provider==='replicate') return Boolean(process.env.REPLICATE_API_TOKEN?.trim());
-  return false;
+  return providerName()==='replicate' && Boolean(process.env.REPLICATE_API_TOKEN?.trim());
 }
 
 export async function startProvider(job:GenerationJob):Promise<ProviderStart> {
-  const provider=(process.env.AI_PROVIDER_PRIMARY||'mock').toLowerCase();
-  if(provider!=='replicate') throw new Error('provider_not_configured');
+  const provider=providerName();
+  if(provider!=='replicate') throw new Error(`provider_not_configured:${provider}`);
   const model=modelFor(job);
   if(!model) throw new Error(`replicate_model_missing:${job.type}`);
   const parts=model.split('/');
@@ -86,8 +103,8 @@ export async function startProvider(job:GenerationJob):Promise<ProviderStart> {
 }
 
 export async function pollProvider(providerJobId:string):Promise<ProviderPoll> {
-  const provider=(process.env.AI_PROVIDER_PRIMARY||'mock').toLowerCase();
-  if(provider!=='replicate') return {status:'failed',error:'provider_not_configured'};
+  const provider=providerName();
+  if(provider!=='replicate') return {status:'failed',error:`provider_not_configured:${provider}`};
   const body=await replicateRequest(`/v1/predictions/${encodeURIComponent(providerJobId)}`);
   const status=String(body.status||'').toLowerCase();
   if(status==='succeeded') return {status:'completed',outputUrl:outputUrl(body.output)};
