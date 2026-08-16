@@ -41,14 +41,21 @@ workflows:
                   s=s.replace('</application>', f'''\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="{app_id}" />\n    </application>''')
               manifest.write_text(s)
 
-          # Professional Veyra adaptive icon using native vector drawables.
           values=Path('android/app/src/main/res/values'); values.mkdir(parents=True, exist_ok=True)
           (values/'colors.xml').write_text('''<?xml version="1.0" encoding="utf-8"?><resources><color name="veyra_icon_bg">#090B12</color></resources>''')
           drawable=Path('android/app/src/main/res/drawable'); drawable.mkdir(parents=True, exist_ok=True)
           (drawable/'ic_veyra_foreground.xml').write_text('''<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#8B5CF6" android:pathData="M22,20 L44,20 L54,47 L64,20 L86,20 L62,79 L46,79 Z"/><path android:fillColor="#55D6FF" android:pathData="M54,47 L64,20 L86,20 L62,79 Z"/><path android:fillColor="#FFD76A" android:pathData="M79,18 L82,25 L89,28 L82,31 L79,38 L76,31 L69,28 L76,25 Z"/></vector>''')
-          for folder in ['mipmap-anydpi-v26','mipmap-anydpi']:
-              d=Path('android/app/src/main/res')/folder; d.mkdir(parents=True, exist_ok=True)
-              (d/'ic_launcher.xml').write_text('''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/veyra_icon_bg"/><foreground android:drawable="@drawable/ic_veyra_foreground"/></adaptive-icon>''')
+
+          # Adaptive icon XML is valid only for API 26+ resources.
+          v26=Path('android/app/src/main/res/mipmap-anydpi-v26'); v26.mkdir(parents=True, exist_ok=True)
+          (v26/'ic_launcher.xml').write_text('''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/veyra_icon_bg"/><foreground android:drawable="@drawable/ic_veyra_foreground"/></adaptive-icon>''')
+          (v26/'ic_launcher_round.xml').write_text('''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/veyra_icon_bg"/><foreground android:drawable="@drawable/ic_veyra_foreground"/></adaptive-icon>''')
+
+          # Remove invalid non-versioned adaptive XML if a previous build script created it.
+          legacy=Path('android/app/src/main/res/mipmap-anydpi')
+          for filename in ['ic_launcher.xml','ic_launcher_round.xml']:
+              f=legacy/filename
+              if f.exists(): f.unlink()
           PY
       - name: Verify Android release prerequisites
         script: |
@@ -56,6 +63,7 @@ workflows:
           grep -R "targetSdk = 36\|targetSdkVersion 36" android/app/build.gradle* || true
           grep -R "ai.veyra.app" android/app/build.gradle* || true
           grep -n "com.google.android.gms.ads.APPLICATION_ID" android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
       - name: Install dependencies
         script: flutter pub get
       - name: Analyze
