@@ -1,6 +1,6 @@
 workflows:
   creatorai_android:
-    name: CreatorAI Android APK
+    name: Veyra AI Android APK
     max_build_duration: 45
     instance_type: mac_mini_m2
     environment:
@@ -8,8 +8,8 @@ workflows:
     scripts:
       - name: Bootstrap Android
         script: |
-          flutter create --platforms=android --org ai.creator --project-name creator_ai .
-      - name: Set Android min SDK
+          flutter create --platforms=android --org ai.veyra --project-name creator_ai .
+      - name: Configure Veyra Android
         script: |
           python3 - <<'PY'
           from pathlib import Path
@@ -20,6 +20,10 @@ workflows:
                   s=s.replace('minSdk = flutter.minSdkVersion','minSdk = 24')
                   s=s.replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24')
                   p.write_text(s)
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          if p.exists():
+              s=p.read_text().replace('android:label="creator_ai"','android:label="Veyra AI"')
+              p.write_text(s)
           PY
       - name: Install dependencies
         script: flutter pub get
@@ -37,14 +41,27 @@ workflows:
       - build/app/outputs/flutter-apk/app-debug.apk
 
   creatorai_web:
-    name: CreatorAI Web
+    name: Veyra AI Web
     max_build_duration: 45
     instance_type: mac_mini_m2
     environment:
       flutter: 3.44.7
     scripts:
       - name: Bootstrap Web
-        script: flutter create --platforms=web --org ai.creator --project-name creator_ai .
+        script: flutter create --platforms=web --org ai.veyra --project-name creator_ai .
+      - name: Configure Veyra Web
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('web/index.html')
+          if p.exists():
+              s=p.read_text().replace('<title>creator_ai</title>','<title>Veyra AI</title>')
+              p.write_text(s)
+          p=Path('web/manifest.json')
+          if p.exists():
+              s=p.read_text().replace('"name": "creator_ai"','"name": "Veyra AI"').replace('"short_name": "creator_ai"','"short_name": "Veyra AI"')
+              p.write_text(s)
+          PY
       - name: Install dependencies
         script: flutter pub get
       - name: Analyze
@@ -57,7 +74,7 @@ workflows:
       - build/web/**
 
   creatorai_ios_simulator:
-    name: CreatorAI iOS Simulator
+    name: Veyra AI iOS Simulator
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
@@ -66,7 +83,16 @@ workflows:
       cocoapods: default
     scripts:
       - name: Bootstrap iOS
-        script: flutter create --platforms=ios --org ai.creator --project-name creator_ai .
+        script: flutter create --platforms=ios --org ai.veyra --project-name creator_ai .
+      - name: Configure Veyra iOS
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('ios/Runner/Info.plist')
+          if p.exists():
+              s=p.read_text().replace('<string>creator_ai</string>','<string>Veyra AI</string>')
+              p.write_text(s)
+          PY
       - name: Install dependencies
         script: flutter pub get
       - name: Install CocoaPods
