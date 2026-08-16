@@ -1,7 +1,7 @@
 name: creator_ai
 description: Veyra AI - professional AI image, video and advertising studio.
 publish_to: 'none'
-version: 0.3.0+3
+version: 0.4.0+4
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -16,6 +16,10 @@ dependencies:
   shared_preferences: ^2.5.3
   in_app_purchase: ^3.3.0
   google_mobile_ads: ^9.0.0
+  firebase_core: ^4.1.0
+  firebase_auth: ^6.1.0
+  google_sign_in: ^7.2.0
+  sign_in_with_apple: ^7.0.1
 
 dev_dependencies:
   flutter_test:
