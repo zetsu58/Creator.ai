@@ -39,7 +39,7 @@ class CreatorTheme {
         titleTextStyle: const TextStyle(
           color: Colors.white,
           fontSize: 20,
-          fontWeight: FontWeight.w850,
+          fontWeight: FontWeight.w800,
           letterSpacing: -.25,
         ),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -93,7 +93,7 @@ class CreatorTheme {
           minimumSize: const Size.fromHeight(56),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontWeight: FontWeight.w850, letterSpacing: -.1),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -.1),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -103,14 +103,14 @@ class CreatorTheme {
           side: BorderSide(color: Colors.white.withValues(alpha: .12)),
           shape: const StadiumBorder(),
           foregroundColor: Colors.white,
-          textStyle: const TextStyle(fontWeight: FontWeight.w750),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: const StadiumBorder(),
           foregroundColor: cyan,
-          textStyle: const TextStyle(fontWeight: FontWeight.w750),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
