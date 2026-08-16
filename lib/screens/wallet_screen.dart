@@ -196,14 +196,31 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
                   onTap: () => _buy(item),
                   child: Padding(
                     padding: const EdgeInsets.all(17),
-                    child: Row(children: [
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                       Container(width: 48, height: 48, decoration: BoxDecoration(borderRadius: BorderRadius.circular(17), gradient: const LinearGradient(colors: [Color(0xFF7045E8), Color(0xFF26BDE8)])), child: const Icon(Icons.bolt, color: Colors.white)),
                       const SizedBox(width: 14),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Row(children: [Text('${item['title']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)), if (badge != null) ...[const SizedBox(width: 8), Chip(label: Text('$badge'))]]),
+                        Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 6, children: [
+                          Text('${item['title']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                          if (badge != null) Chip(label: Text('$badge')),
+                        ]),
+                        const SizedBox(height: 2),
                         Text('${item['credits']} ${t('kredi', 'credits')}', style: const TextStyle(color: Colors.white60)),
                       ])),
-                      Text(detail?.price ?? t('Mağazada tanımla', 'Configure in store'), style: TextStyle(fontWeight: FontWeight.w900, color: detail == null ? Colors.white38 : CreatorTheme.gold)),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        flex: 0,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 118),
+                          child: Text(
+                            detail?.price ?? t('Mağazada tanımla', 'Configure in store'),
+                            textAlign: TextAlign.end,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: detail == null ? Colors.white38 : CreatorTheme.gold),
+                          ),
+                        ),
+                      ),
                     ]),
                   ),
                 )),
