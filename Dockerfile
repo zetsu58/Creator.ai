@@ -15,4 +15,4 @@ COPY --from=build /app/dist ./dist
 COPY backend/scripts ./scripts
 COPY backend/db ./db
 EXPOSE 8080
-CMD ["sh", "-c", "node scripts/migrate.mjs && node dist/index_v2.js"]
+CMD ["sh", "-c", "node scripts/migrate.mjs && node dist/server.js"]
