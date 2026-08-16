@@ -46,6 +46,7 @@ create table if not exists generation_jobs (
   provider text,
   provider_job_id text,
   credits_reserved bigint not null default 0,
+  reservation_breakdown jsonb not null default '{}'::jsonb,
   provider_cost_minor bigint,
   provider_currency text,
   output_url text,
@@ -56,14 +57,24 @@ create table if not exists generation_jobs (
   started_at timestamptz,
   completed_at timestamptz
 );
+alter table generation_jobs add column if not exists reservation_breakdown jsonb not null default '{}'::jsonb;
 create index if not exists idx_generation_user_created on generation_jobs(user_id, created_at desc);
 create index if not exists idx_generation_status on generation_jobs(status, created_at);
+
+create table if not exists brand_kits (
+  user_id uuid primary key references users(id) on delete cascade,
+  name text not null default 'My Brand',
+  colors jsonb not null default '["#8B5CF6","#55D6FF"]'::jsonb,
+  slogan text not null default '',
+  logo_url text,
+  updated_at timestamptz not null default now()
+);
 
 create table if not exists generation_reports (
   id uuid primary key default gen_random_uuid(),
   generation_job_id uuid not null references generation_jobs(id) on delete cascade,
   reporter_user_id uuid references users(id) on delete set null,
-  reason text not null check (reason in ('unsafe','sexual','violent','hate','copyright','identity','spam','other')),
+  reason text not null check (reason in ('unsafe','sexual','violent','hate','copyright','identity','spam','other','bad_quality')),
   details text,
   status text not null default 'open' check (status in ('open','reviewing','resolved','dismissed')),
   resolution text,
