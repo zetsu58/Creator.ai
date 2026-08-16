@@ -34,6 +34,7 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
   String plan = 'free';
   bool loading = true;
   bool storeAvailable = false;
+  bool _started = false;
   String? error;
   List<Map<String, dynamic>> products = const [];
   List<Map<String, dynamic>> ledger = const [];
@@ -46,6 +47,13 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
     super.initState();
     credits = widget.initialCredits;
     _purchaseSub = _iap.purchaseStream.listen(_onPurchases, onError: (_) {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
     _load();
   }
 
@@ -59,7 +67,9 @@ class _CreditWalletPageState extends State<CreditWalletPage> {
     if (!mounted) return;
     setState(() { loading = true; error = null; });
     try {
-      if (!widget.api.configured) throw Exception(t('Sunucu adresi yapılandırılmadı', 'Server URL is not configured'));
+      if (!widget.api.configured) {
+        throw Exception(t('Veyra Cloud sunucu adresi yapılandırılmadı', 'Veyra Cloud server URL is not configured'));
+      }
       final wallet = await widget.api.wallet(widget.userId);
       final store = await widget.api.storeProducts();
       final history = await widget.api.walletLedger(widget.userId);
