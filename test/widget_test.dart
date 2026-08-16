@@ -3,11 +3,17 @@ import 'package:creator_ai/main.dart';
 import 'package:creator_ai/screens/wallet_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('Veyra AI smoke test', (tester) async {
     await tester.pumpWidget(const CreatorAIApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
 
     expect(find.byKey(const Key('veyra_app')), findsOneWidget);
     expect(find.byType(MaterialApp), findsOneWidget);
