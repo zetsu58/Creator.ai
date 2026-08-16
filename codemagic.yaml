@@ -18,7 +18,6 @@ workflows:
           python3 - <<'PY'
           import os, re
           from pathlib import Path
-
           for name in ['android/app/build.gradle.kts','android/app/build.gradle']:
               p=Path(name)
               if not p.exists(): continue
@@ -32,7 +31,6 @@ workflows:
               s=re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "ai.veyra.app"', s)
               s=re.sub(r'applicationId\s+"[^"]+"', 'applicationId "ai.veyra.app"', s)
               p.write_text(s)
-
           manifest=Path('android/app/src/main/AndroidManifest.xml')
           if manifest.exists():
               s=manifest.read_text().replace('android:label="creator_ai"','android:label="Veyra AI"')
@@ -40,18 +38,13 @@ workflows:
               if 'com.google.android.gms.ads.APPLICATION_ID' not in s:
                   s=s.replace('</application>', f'''\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="{app_id}" />\n    </application>''')
               manifest.write_text(s)
-
           values=Path('android/app/src/main/res/values'); values.mkdir(parents=True, exist_ok=True)
           (values/'colors.xml').write_text('''<?xml version="1.0" encoding="utf-8"?><resources><color name="veyra_icon_bg">#090B12</color></resources>''')
           drawable=Path('android/app/src/main/res/drawable'); drawable.mkdir(parents=True, exist_ok=True)
           (drawable/'ic_veyra_foreground.xml').write_text('''<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#8B5CF6" android:pathData="M22,20 L44,20 L54,47 L64,20 L86,20 L62,79 L46,79 Z"/><path android:fillColor="#55D6FF" android:pathData="M54,47 L64,20 L86,20 L62,79 Z"/><path android:fillColor="#FFD76A" android:pathData="M79,18 L82,25 L89,28 L82,31 L79,38 L76,31 L69,28 L76,25 Z"/></vector>''')
-
-          # Adaptive icon XML is valid only for API 26+ resources.
           v26=Path('android/app/src/main/res/mipmap-anydpi-v26'); v26.mkdir(parents=True, exist_ok=True)
           (v26/'ic_launcher.xml').write_text('''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/veyra_icon_bg"/><foreground android:drawable="@drawable/ic_veyra_foreground"/></adaptive-icon>''')
           (v26/'ic_launcher_round.xml').write_text('''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/veyra_icon_bg"/><foreground android:drawable="@drawable/ic_veyra_foreground"/></adaptive-icon>''')
-
-          # Remove invalid non-versioned adaptive XML if a previous build script created it.
           legacy=Path('android/app/src/main/res/mipmap-anydpi')
           for filename in ['ic_launcher.xml','ic_launcher_round.xml']:
               f=legacy/filename
@@ -64,6 +57,7 @@ workflows:
           grep -R "ai.veyra.app" android/app/build.gradle* || true
           grep -n "com.google.android.gms.ads.APPLICATION_ID" android/app/src/main/AndroidManifest.xml
           test -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then echo "Veyra Cloud URL configured"; else echo "Veyra Cloud URL is NOT configured"; fi
       - name: Install dependencies
         script: flutter pub get
       - name: Analyze
@@ -71,7 +65,12 @@ workflows:
       - name: Test
         script: flutter test
       - name: Build Android debug APK
-        script: flutter build apk --debug
+        script: |
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
+            flutter build apk --debug --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
+          else
+            flutter build apk --debug
+          fi
       - name: Verify APK
         script: |
           test -f build/app/outputs/flutter-apk/app-debug.apk
@@ -115,7 +114,12 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - name: Build release candidate AAB
-        script: flutter build appbundle --release
+        script: |
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
+            flutter build appbundle --release --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
+          else
+            flutter build appbundle --release
+          fi
       - name: Verify AAB
         script: |
           test -f build/app/outputs/bundle/release/app-release.aab
@@ -149,7 +153,12 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - name: Build Web release
-        script: flutter build web --release
+        script: |
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
+            flutter build web --release --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
+          else
+            flutter build web --release
+          fi
     artifacts:
       - build/web/**
 
@@ -187,6 +196,11 @@ workflows:
           flutter analyze --no-fatal-infos
           flutter test
       - name: Build iOS simulator app
-        script: flutter build ios --simulator --debug --no-codesign
+        script: |
+          if [ -n "${VEYRA_API_BASE_URL:-}" ]; then
+            flutter build ios --simulator --debug --no-codesign --dart-define=VEYRA_API_BASE_URL="$VEYRA_API_BASE_URL"
+          else
+            flutter build ios --simulator --debug --no-codesign
+          fi
     artifacts:
       - build/ios/iphonesimulator/*.app/**
