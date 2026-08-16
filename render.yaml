@@ -12,10 +12,14 @@ services:
         value: 8080
       - key: NODE_ENV
         value: production
+      - key: VEYRA_REQUIRE_AUTH
+        value: true
       - key: VEYRA_ADMIN_TOKEN
         generateValue: true
       - key: VEYRA_SESSION_SECRET
         generateValue: true
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
       - key: AI_PROVIDER_PRIMARY
         value: mock
       - key: AI_PROVIDER_FALLBACK
