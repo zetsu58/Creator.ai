@@ -86,7 +86,7 @@ jobs:
         run: flutter test
 
       - name: Build debug APK
-        run: flutter build apk --debug -t lib/main_auth.dart --dart-define=VEYRA_API_BASE_URL=https://veyra-ai-xsp3.onrender.com
+        run: flutter build apk --debug -t lib/main_auth.dart --dart-define=VEYRA_API_BASE_URL=https://veyra-ai-sigma.vercel.app
 
       - name: Verify APK
         shell: bash
