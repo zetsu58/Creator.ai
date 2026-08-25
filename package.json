@@ -1,6 +1,6 @@
 {
   "name": "veyra-ai-vercel",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,6 +11,7 @@
     "@vercel/blob": "^1.0.2",
     "@vercel/node": "^5.3.24",
     "firebase-admin": "^14.2.0",
+    "google-auth-library": "^10.3.0",
     "pg": "^8.16.3"
   }
 }
