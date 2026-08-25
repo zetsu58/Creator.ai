@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../core/api/veyra_api.dart';
 import '../core/api/veyra_generation_api.dart';
+import 'video_player_screen.dart';
 
 class ImageToVideoScreen extends StatefulWidget {
   const ImageToVideoScreen({
@@ -179,7 +180,7 @@ class _ImageToVideoScreenState extends State<ImageToVideoScreen> {
         _status = 'Generation • $status';
       });
       if (status == 'completed') {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Video hazır. Projects içinde görüntülenebilir.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Video hazır. Videolarım bölümünde de görüntülenebilir.')));
         return;
       }
       if (status == 'failed' || status == 'refunded') {
@@ -189,7 +190,7 @@ class _ImageToVideoScreenState extends State<ImageToVideoScreen> {
       }
       await Future<void>.delayed(const Duration(seconds: 5));
     }
-    if (mounted) setState(() => _status = 'Generation devam ediyor. Projects bölümünden durumu yenileyebilirsin.');
+    if (mounted) setState(() => _status = 'Generation devam ediyor. Videolarım bölümünden durumu yenileyebilirsin.');
   }
 
   @override
@@ -284,10 +285,16 @@ class _ImageToVideoScreenState extends State<ImageToVideoScreen> {
                     Text('Durum: $status'),
                     Text('Provider: ${_job!['provider'] ?? 'runway'}'),
                     if (status == 'refunded') const Text('Kredi otomatik iade edildi.', style: TextStyle(color: Colors.orangeAccent)),
-                    if (outputUrl.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      const Text('Video hazır:', style: TextStyle(fontWeight: FontWeight.w800)),
-                      SelectableText(outputUrl),
+                    if (status == 'completed' && outputUrl.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        key: const Key('image_to_video_play'),
+                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => VeyraVideoPlayerScreen(url: outputUrl, title: 'Veyra Image to Video'),
+                        )),
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Videoyu oynat'),
+                      ),
                     ],
                     const SizedBox(height: 12),
                     FilledButton.tonalIcon(
