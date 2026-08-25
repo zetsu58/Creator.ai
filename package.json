@@ -1,0 +1,12 @@
+{
+  "name": "veyra-ai-vercel",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "dependencies": {
+    "@vercel/blob": "^1.0.2",
+    "@vercel/node": "^5.3.24"
+  }
+}
