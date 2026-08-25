@@ -1,0 +1,102 @@
+name: Production QA Once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/production-qa-once.yml'
+  workflow_dispatch:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Production auth, session, Firebase and security smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://veyra-ai-sigma.vercel.app'
+          DEVICE="gha-$(date +%s)-$(openssl rand -hex 12)"
+
+          echo '== Public pages =='
+          for p in / /login /studio /dashboard /profile /pricing /privacy /terms /support; do
+            code=$(curl -sS -o /tmp/page -w '%{http_code}' "$BASE$p")
+            echo "$p -> $code"
+            test "$code" = '200'
+          done
+
+          echo '== Homepage cleanup =='
+          HOME=$(curl -sS "$BASE/")
+          if grep -q 'Production durumu' <<<"$HOME"; then
+            echo 'FAIL: Production durumu card is still live'
+            exit 21
+          fi
+          grep -q '/consent.js' <<<"$HOME"
+
+          echo '== Anonymous auth =='
+          AUTH=$(curl -sS -X POST "$BASE/api/auth-anonymous" \
+            -H 'content-type: application/json' \
+            --data "{\"deviceKey\":\"$DEVICE\"}")
+          echo "$AUTH" | jq '{userId,expiresAt,guest,welcomeGranted,error}'
+          USER=$(echo "$AUTH" | jq -r '.userId // empty')
+          TOKEN=$(echo "$AUTH" | jq -r '.token // empty')
+          test -n "$USER" && test -n "$TOKEN"
+
+          authget() {
+            local path="$1"
+            local code
+            code=$(curl -sS -o /tmp/body -w '%{http_code}' "$BASE$path" -H "authorization: Bearer $TOKEN")
+            echo "$path -> $code"
+            cat /tmp/body | jq . || cat /tmp/body
+            echo
+            test "$code" = '200'
+          }
+
+          echo '== Session persistence across account APIs =='
+          authget '/api/profile'
+          authget "/api/user-generations?userId=$USER"
+          authget "/api/wallet?userId=$USER"
+
+          echo '== Unauthorized protection =='
+          for p in "/api/profile" "/api/user-generations?userId=$USER" "/api/wallet?userId=$USER"; do
+            code=$(curl -sS -o /tmp/unauth -w '%{http_code}' "$BASE$p")
+            echo "$p without token -> $code"
+            case "$code" in 401|403) ;; *) echo 'FAIL: protected route accepted missing auth'; cat /tmp/unauth; exit 31;; esac
+          done
+
+          echo '== Firebase provider status =='
+          FIREBASE=$(curl -sS "$BASE/api/firebase-config")
+          echo "$FIREBASE" | jq '{configured,providers}'
+
+          echo '== Real Runway Text-to-Video production test =='
+          GEN=$(curl -sS -X POST "$BASE/api/generations" \
+            -H "authorization: Bearer $TOKEN" \
+            -H 'content-type: application/json' \
+            --data "$(jq -nc --arg u "$USER" '{userId:$u,type:"video",prompt:"Cinematic close-up of a glass sphere on a clean studio table, slow camera push in, soft daylight, realistic reflections, professional product video",seconds:5,quality:"fast",audio:false,aspectRatio:"16:9",references:[]}')")
+          echo "$GEN" | jq '{id,status,provider,providerJobId,cost,error,jobId}'
+          JOB=$(echo "$GEN" | jq -r '.id // .jobId // empty')
+          test -n "$JOB"
+
+          FINAL=''
+          for i in $(seq 1 45); do
+            sleep 4
+            STATUS=$(curl -sS "$BASE/api/generation-status?id=$JOB" -H "authorization: Bearer $TOKEN")
+            STATE=$(echo "$STATUS" | jq -r '.status // empty')
+            echo "poll $i -> $STATE"
+            if [[ "$STATE" =~ ^(completed|failed|refunded)$ ]]; then
+              echo "$STATUS" | jq '{id,status,outputUrl,failureCode,failureMessage,refundedAt}'
+              FINAL="$STATE"
+              break
+            fi
+          done
+          test -n "$FINAL"
+          case "$FINAL" in
+            completed) echo 'Runway production generation completed.' ;;
+            refunded) echo 'Generation failed but automatic credit refund completed.' ;;
+            failed) echo 'FAIL: generation failed without refund'; exit 41 ;;
+          esac
+
+          echo '== Wallet after generation =='
+          authget "/api/wallet?userId=$USER"
+
+          echo 'PRODUCTION_QA_COMPLETE'
