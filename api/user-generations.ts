@@ -1,15 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ensureGenerationSchema, pool } from '../backend/src/db.js';
-import { sessionsConfigured, verifySession } from '../backend/src/session.js';
-
-function bearer(req: VercelRequest) {
-  return String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
-}
-
-function authorized(req: VercelRequest, userId: string) {
-  if (sessionsConfigured()) return verifySession(bearer(req))?.userId === userId;
-  return String(process.env.VEYRA_REQUIRE_AUTH ?? 'false').toLowerCase() !== 'true';
-}
+import { requireUser } from '../backend/src/api_auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({error:'method_not_allowed'});
@@ -17,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const userId = String(req.query.userId ?? '').trim();
   if (!userId) return res.status(400).json({error:'missing_user_id'});
-  if (!authorized(req, userId)) return res.status(401).json({error:'unauthorized'});
+  if (!await requireUser(req,userId)) return res.status(401).json({error:'unauthorized'});
 
   try {
     await ensureGenerationSchema();
