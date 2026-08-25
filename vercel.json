@@ -9,8 +9,8 @@
     { "source": "/", "destination": "/index.html" },
     { "source": "/studio", "destination": "/studio.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
-    { "source": "/pricing", "destination": "/index.html" },
-    { "source": "/login", "destination": "/studio.html" },
-    { "source": "/register", "destination": "/studio.html" }
+    { "source": "/pricing", "destination": "/pricing.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/register", "destination": "/login.html" }
   ]
 }
