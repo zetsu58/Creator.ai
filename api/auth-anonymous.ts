@@ -34,8 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (isNew) {
         await client.query(
           `insert into credit_ledger(user_id,bucket,delta,reason,reference_type,reference_id,idempotency_key)
-           values($1,'promo',100,'welcome_credits','account',$1,$2) on conflict do nothing`,
-          [userId,`welcome:${userId}`],
+           values($1,'promo',100,'welcome_credits','account',$2,$3) on conflict do nothing`,
+          [userId,userId,`welcome:${userId}`],
         );
       }
       await client.query('commit');
