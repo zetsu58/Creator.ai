@@ -11,7 +11,10 @@ const TYPES: Record<string,string> = {
 
 function signatureOk(data: Buffer, mime: string) {
   if (mime === 'image/jpeg') return data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
-  if (mime === 'image/png') return data.length >= 8 && data.subarray(0,8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]));
+  if (mime === 'image/png') {
+    const sig = [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a];
+    return data.length >= sig.length && sig.every((value,index) => data[index] === value);
+  }
   if (mime === 'image/webp') return data.length >= 12 && data.subarray(0,4).toString('ascii') === 'RIFF' && data.subarray(8,12).toString('ascii') === 'WEBP';
   return false;
 }
@@ -29,8 +32,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return res.status(503).json({error:'storage_not_configured'});
 
-  // Until the unified Firebase/session middleware lands, require the same user identity header
-  // already used by the Veyra API. Never use it as a Blob pathname directly.
   const userId = String(req.headers['x-veyra-user-id'] ?? '').trim();
   if (!userId || userId.length > 200) return res.status(401).json({error:'unauthorized'});
 
