@@ -84,6 +84,21 @@ class VeyraGenerationApi {
     return _decode(response, expected: 200);
   }
 
+  Future<List<Map<String, dynamic>>> userGenerations({
+    required String userId,
+    String? token,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/user-generations?userId=${Uri.encodeQueryComponent(userId)}');
+    final response = await _client
+        .get(uri, headers: _authHeaders(token: token))
+        .timeout(const Duration(seconds: 30));
+    final body = _decode(response, expected: 200);
+    return (body['items'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
   Map<String, dynamic> _decode(http.Response response, {required int expected}) {
     Map<String, dynamic> body = const {};
     if (response.body.isNotEmpty) {
