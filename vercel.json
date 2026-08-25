@@ -5,6 +5,20 @@
       "maxDuration": 60
     }
   },
+  "headers": [
+    {
+      "source": "/veyra.css",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/(.*\\.(?:svg|png|jpg|jpeg|webp|ico))",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/studio", "destination": "/studio.html" },
