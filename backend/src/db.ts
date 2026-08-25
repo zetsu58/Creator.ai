@@ -82,11 +82,19 @@ export async function ensureGenerationSchema() {
         completed_at timestamptz
       );
 
+      create table if not exists api_sessions (
+        token_hash text primary key,
+        user_id uuid not null references users(id) on delete cascade,
+        expires_at timestamptz not null,
+        created_at timestamptz not null default now()
+      );
+
       alter table generation_jobs add column if not exists input_image_url text;
       alter table generation_jobs add column if not exists reservation_breakdown jsonb not null default '{}'::jsonb;
       create index if not exists idx_generation_user_created on generation_jobs(user_id, created_at desc);
       create index if not exists idx_generation_status on generation_jobs(status, created_at);
       create index if not exists idx_credit_ledger_user_created on credit_ledger(user_id, created_at desc);
+      create index if not exists idx_api_sessions_user on api_sessions(user_id, expires_at desc);
     `);
   })().catch((error) => {
     schemaPromise = null;
