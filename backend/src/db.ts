@@ -15,6 +15,7 @@ export const pool = databaseConfigured
     })
   : null;
 
+// Idempotent production bootstrap: every authenticated API can repair missing core tables safely.
 let schemaPromise: Promise<void> | null = null;
 
 export async function ensureGenerationSchema() {
