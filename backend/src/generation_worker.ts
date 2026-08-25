@@ -35,7 +35,7 @@ async function refund(job:any, reason:string, message:string) {
 
 async function processQueued(){
   if(!pool) return;
-  const r=await pool.query("select id,kind as type,prompt,quality,aspect_ratio as \"aspectRatio\",duration_seconds as seconds,audio from generation_jobs where status='queued' order by created_at asc limit 3");
+  const r=await pool.query("select id,kind as type,prompt,quality,aspect_ratio as \"aspectRatio\",duration_seconds as seconds,audio,input_image_url as \"imageUrl\" from generation_jobs where status='queued' order by created_at asc limit 3");
   for(const job of r.rows){
     if(!providerConfigured()){
       const diagnostics=providerDiagnostics();
@@ -46,7 +46,7 @@ async function processQueued(){
     const claimed=await pool.query("update generation_jobs set status='processing',started_at=coalesce(started_at,now()) where id=$1 and status='queued' returning id",[job.id]);
     if(!claimed.rowCount) continue;
     try{
-      logWorker('submit', {jobId:job.id,type:job.type,aspectRatio:job.aspectRatio,seconds:job.seconds,audio:job.audio});
+      logWorker('submit', {jobId:job.id,type:job.type,aspectRatio:job.aspectRatio,seconds:job.seconds,audio:job.audio,hasImage:Boolean(job.imageUrl)});
       const started=await startProvider(job);
       logWorker('submitted', {jobId:job.id,providerJobId:started.providerJobId,status:started.status});
       if(started.status==='completed'){
