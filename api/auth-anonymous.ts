@@ -11,7 +11,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     await ensureGenerationSchema();
-    const externalAuthId = `device:${crypto.createHash('sha256').update(deviceKey).digest('hex')}`;
+    const deviceHash = crypto.createHash('sha256').update(deviceKey).digest('hex');
+    const externalAuthId = `device:${deviceHash}`;
+    const guestEmail = `guest+${deviceHash.slice(0,24)}@anonymous.veyra.local`;
     const client = await pool.connect();
     let userId = '';
     try {
@@ -19,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let user = await client.query("select id from users where external_auth_id=$1 and status='active' for update",[externalAuthId]);
       let isNew = false;
       if (!user.rowCount) {
-        user = await client.query("insert into users(external_auth_id,plan,status) values($1,'free','active') returning id",[externalAuthId]);
+        user = await client.query("insert into users(external_auth_id,email,display_name,plan,status) values($1,$2,'Misafir','free','active') returning id",[externalAuthId,guestEmail]);
         isNew = true;
       }
       userId = String(user.rows[0].id);
