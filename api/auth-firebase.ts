@@ -23,7 +23,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     const provider=String(decoded.firebase?.sign_in_provider||'firebase');
     if(!['google.com','apple.com','password'].includes(provider)) return res.status(403).json({error:'unsupported_auth_provider'});
     const externalAuthId=`firebase:${decoded.uid}`;
-    const email=decoded.email?String(decoded.email).toLowerCase():null;
+    const email=decoded.email?String(decoded.email).toLowerCase():`firebase+${decoded.uid.slice(0,24)}@anonymous.veyra.local`;
     const name=decoded.name?String(decoded.name).slice(0,80):null;
     const client=await pool.connect();
     let userId='';
@@ -40,7 +40,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
       }
       userId=String(r.rows[0].id);
       await client.query('insert into wallets(user_id,promo_credits) values($1,$2) on conflict(user_id) do nothing',[userId,isNew?100:0]);
-      if(isNew) await client.query("insert into credit_ledger(user_id,bucket,delta,reason,reference_type,reference_id,idempotency_key) values($1,'promo',100,'welcome_credits','account',$1,$2) on conflict do nothing",[userId,`welcome:${userId}`]);
+      if(isNew) await client.query("insert into credit_ledger(user_id,bucket,delta,reason,reference_type,reference_id,idempotency_key) values($1,'promo',100,'welcome_credits','account',$2,$3) on conflict do nothing",[userId,userId,`welcome:${userId}`]);
       await client.query('commit');
     }catch(e){await client.query('rollback');throw e;}finally{client.release();}
     return res.status(200).json(await issueSession(userId));
