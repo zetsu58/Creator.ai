@@ -15,6 +15,86 @@ export const pool = databaseConfigured
     })
   : null;
 
+let schemaPromise: Promise<void> | null = null;
+
+export async function ensureGenerationSchema() {
+  if (!pool) throw new Error('database_not_configured');
+  if (schemaPromise) return schemaPromise;
+  schemaPromise = (async () => {
+    await pool.query(`
+      create extension if not exists pgcrypto;
+
+      create table if not exists users (
+        id uuid primary key default gen_random_uuid(),
+        external_auth_id text unique,
+        email text,
+        plan text not null default 'free',
+        status text not null default 'active',
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now(),
+        deleted_at timestamptz
+      );
+
+      create table if not exists wallets (
+        user_id uuid primary key references users(id) on delete cascade,
+        purchased_credits bigint not null default 0,
+        subscription_credits bigint not null default 0,
+        promo_credits bigint not null default 0,
+        updated_at timestamptz not null default now()
+      );
+
+      create table if not exists credit_ledger (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users(id) on delete cascade,
+        bucket text not null,
+        delta bigint not null,
+        reason text not null,
+        reference_type text,
+        reference_id text,
+        idempotency_key text unique,
+        created_at timestamptz not null default now()
+      );
+
+      create table if not exists generation_jobs (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users(id) on delete cascade,
+        kind text not null,
+        prompt text not null,
+        prompt_moderation jsonb not null default '{}'::jsonb,
+        status text not null default 'queued',
+        quality text not null default 'fast',
+        aspect_ratio text,
+        duration_seconds integer,
+        audio boolean not null default false,
+        input_image_url text,
+        provider text,
+        provider_job_id text,
+        credits_reserved bigint not null default 0,
+        reservation_breakdown jsonb not null default '{}'::jsonb,
+        provider_cost_minor bigint,
+        provider_currency text,
+        output_url text,
+        failure_code text,
+        failure_message text,
+        refunded_at timestamptz,
+        created_at timestamptz not null default now(),
+        started_at timestamptz,
+        completed_at timestamptz
+      );
+
+      alter table generation_jobs add column if not exists input_image_url text;
+      alter table generation_jobs add column if not exists reservation_breakdown jsonb not null default '{}'::jsonb;
+      create index if not exists idx_generation_user_created on generation_jobs(user_id, created_at desc);
+      create index if not exists idx_generation_status on generation_jobs(status, created_at);
+      create index if not exists idx_credit_ledger_user_created on credit_ledger(user_id, created_at desc);
+    `);
+  })().catch((error) => {
+    schemaPromise = null;
+    throw error;
+  });
+  return schemaPromise;
+}
+
 export async function databaseHealth() {
   if (!pool) return { configured: false, ok: false };
   try {
