@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { pool } from '../backend/src/db.js';
+import { ensureGenerationSchema, pool } from '../backend/src/db.js';
 import { sessionsConfigured, verifySession } from '../backend/src/session.js';
 
 function bearer(req: VercelRequest) {
@@ -20,6 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!authorized(req, userId)) return res.status(401).json({error:'unauthorized'});
 
   try {
+    await ensureGenerationSchema();
     const r = await pool.query(
       `select id,user_id as "userId",kind as type,prompt,status,quality,
               aspect_ratio as "aspectRatio",duration_seconds as seconds,audio,
