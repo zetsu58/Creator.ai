@@ -102,6 +102,14 @@ export async function ensureGenerationSchema() {
         created_at timestamptz not null default now()
       );
 
+      create table if not exists password_reset_tokens (
+        token_hash text primary key,
+        user_id uuid not null references users(id) on delete cascade,
+        expires_at timestamptz not null,
+        used_at timestamptz,
+        created_at timestamptz not null default now()
+      );
+
       alter table generation_jobs add column if not exists input_image_url text;
       alter table generation_jobs add column if not exists reservation_breakdown jsonb not null default '{}'::jsonb;
       create unique index if not exists idx_users_external_auth_unique on users(external_auth_id) where external_auth_id is not null;
@@ -110,6 +118,7 @@ export async function ensureGenerationSchema() {
       create index if not exists idx_generation_status on generation_jobs(status, created_at);
       create index if not exists idx_credit_ledger_user_created on credit_ledger(user_id, created_at desc);
       create index if not exists idx_api_sessions_user on api_sessions(user_id, expires_at desc);
+      create index if not exists idx_password_reset_user on password_reset_tokens(user_id, expires_at desc);
     `);
   })().catch((error) => {
     schemaPromise = null;
