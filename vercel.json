@@ -16,6 +16,17 @@
     { "source": "/register", "destination": "/login.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
-    { "source": "/support", "destination": "/support.html" }
+    { "source": "/support", "destination": "/support.html" },
+
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/v1/auth/anonymous", "destination": "/api/auth-anonymous" },
+    { "source": "/v1/users/:userId/wallet", "destination": "/api/wallet?userId=:userId" },
+    { "source": "/v1/users/:userId/wallet/ledger", "destination": "/api/wallet-ledger?userId=:userId" },
+    { "source": "/v1/store/products", "destination": "/api/store-products" },
+    { "source": "/v1/purchases/verify", "destination": "/api/purchase-verify" },
+    { "source": "/v1/quote", "destination": "/api/quote" },
+    { "source": "/v1/generations", "destination": "/api/generations" },
+    { "source": "/v1/generations/:id", "destination": "/api/generation-status?id=:id" },
+    { "source": "/v1/users/:userId/generations", "destination": "/api/user-generations?userId=:userId" }
   ]
 }
