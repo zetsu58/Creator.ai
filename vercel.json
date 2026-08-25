@@ -21,6 +21,7 @@
     { "source": "/v1/auth/anonymous", "destination": "/api/auth-anonymous" },
     { "source": "/v1/users/:userId/wallet", "destination": "/api/wallet?userId=:userId" },
     { "source": "/v1/users/:userId/wallet/ledger", "destination": "/api/wallet?action=ledger&userId=:userId" },
+    { "source": "/v1/users/:userId/purchases", "destination": "/api/wallet?action=purchases&userId=:userId" },
     { "source": "/v1/store/products", "destination": "/api/wallet?action=products" },
     { "source": "/v1/purchases/verify", "destination": "/api/wallet?action=verify_purchase" },
     { "source": "/v1/quote", "destination": "/api/wallet?action=quote" },
