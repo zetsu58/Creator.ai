@@ -2,8 +2,15 @@ import crypto from 'node:crypto';
 
 const secret = () => process.env.VEYRA_SESSION_SECRET?.trim() || '';
 
-function b64url(input: Buffer | string) {
-  return Buffer.from(input).toString('base64url');
+function b64url(input: string) {
+  return Buffer.from(input, 'utf8').toString('base64url');
+}
+
+function constantTimeStringEqual(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 export function sessionsConfigured() {
@@ -26,10 +33,8 @@ export function verifySession(token: string): { userId: string } | null {
   if (!sessionsConfigured()) return null;
   const [encoded, signature] = token.split('.');
   if (!encoded || !signature) return null;
-  const expected = crypto.createHmac('sha256', secret()).update(encoded).digest();
-  let supplied: Buffer;
-  try { supplied = Buffer.from(signature, 'base64url'); } catch { return null; }
-  if (expected.length !== supplied.length || !crypto.timingSafeEqual(expected, supplied)) return null;
+  const expected = crypto.createHmac('sha256', secret()).update(encoded).digest('base64url');
+  if (!constantTimeStringEqual(expected, signature)) return null;
   try {
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as { sub?: string; exp?: number };
     if (!payload.sub || !payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;

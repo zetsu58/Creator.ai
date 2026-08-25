@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
+import { sessionsConfigured, verifySession } from '../../backend/src/session.js';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const TYPES: Record<string,string> = {
@@ -27,6 +28,19 @@ function getBody(req: VercelRequest): Buffer | null {
   return null;
 }
 
+function bearer(req: VercelRequest) {
+  return String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+}
+
+function authorizedUser(req: VercelRequest, requestedUserId: string) {
+  if (sessionsConfigured()) {
+    const session = verifySession(bearer(req));
+    return session?.userId === requestedUserId;
+  }
+  const requireAuth = String(process.env.VEYRA_REQUIRE_AUTH ?? 'false').toLowerCase() === 'true';
+  return !requireAuth;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({error:'method_not_allowed'});
   const token = process.env.BLOB_READ_WRITE_TOKEN;
@@ -34,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const userId = String(req.headers['x-veyra-user-id'] ?? '').trim();
   if (!userId || userId.length > 200) return res.status(401).json({error:'unauthorized'});
+  if (!authorizedUser(req,userId)) return res.status(401).json({error:'unauthorized'});
 
   const mime = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
   const ext = TYPES[mime];
