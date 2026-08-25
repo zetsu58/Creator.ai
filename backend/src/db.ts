@@ -28,12 +28,25 @@ export async function ensureGenerationSchema() {
         id uuid primary key default gen_random_uuid(),
         external_auth_id text unique,
         email text,
+        display_name text,
+        password_salt text,
+        password_hash text,
         plan text not null default 'free',
         status text not null default 'active',
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now(),
         deleted_at timestamptz
       );
+
+      alter table users add column if not exists external_auth_id text;
+      alter table users add column if not exists email text;
+      alter table users add column if not exists display_name text;
+      alter table users add column if not exists password_salt text;
+      alter table users add column if not exists password_hash text;
+      alter table users add column if not exists plan text not null default 'free';
+      alter table users add column if not exists status text not null default 'active';
+      alter table users add column if not exists updated_at timestamptz not null default now();
+      alter table users add column if not exists deleted_at timestamptz;
 
       create table if not exists wallets (
         user_id uuid primary key references users(id) on delete cascade,
@@ -91,6 +104,8 @@ export async function ensureGenerationSchema() {
 
       alter table generation_jobs add column if not exists input_image_url text;
       alter table generation_jobs add column if not exists reservation_breakdown jsonb not null default '{}'::jsonb;
+      create unique index if not exists idx_users_external_auth_unique on users(external_auth_id) where external_auth_id is not null;
+      create unique index if not exists idx_users_email_unique on users(lower(email)) where email is not null;
       create index if not exists idx_generation_user_created on generation_jobs(user_id, created_at desc);
       create index if not exists idx_generation_status on generation_jobs(status, created_at);
       create index if not exists idx_credit_ledger_user_created on credit_ledger(user_id, created_at desc);
