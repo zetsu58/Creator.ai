@@ -41,7 +41,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
         const u=await client.query("insert into users(email,display_name,password_salt,password_hash,external_auth_id,plan,status) values($1,$2,$3,$4,$5,'free','active') returning id",[email,displayName||null,salt,hash,`email:${email}`]);
         userId=String(u.rows[0].id);
         await client.query('insert into wallets(user_id,promo_credits) values($1,100) on conflict(user_id) do nothing',[userId]);
-        await client.query("insert into credit_ledger(user_id,bucket,delta,reason,reference_type,reference_id,idempotency_key) values($1,'promo',100,'welcome_credits','account',$1,$2) on conflict do nothing",[userId,`welcome:${userId}`]);
+        await client.query("insert into credit_ledger(user_id,bucket,delta,reason,reference_type,reference_id,idempotency_key) values($1,'promo',100,'welcome_credits','account',$2,$3) on conflict do nothing",[userId,userId,`welcome:${userId}`]);
         await client.query('commit');
       }catch(e){await client.query('rollback');throw e;}finally{client.release();}
       return res.status(201).json(await issueSession(userId));
