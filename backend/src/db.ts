@@ -95,6 +95,23 @@ export async function ensureGenerationSchema() {
         completed_at timestamptz
       );
 
+      create table if not exists purchases (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users(id) on delete cascade,
+        platform text not null,
+        product_id text not null,
+        external_transaction_id text not null,
+        purchase_token_hash text,
+        status text not null,
+        amount_minor bigint,
+        currency text,
+        credits_granted bigint not null default 0,
+        raw_reference text,
+        created_at timestamptz not null default now(),
+        verified_at timestamptz,
+        unique(platform, external_transaction_id)
+      );
+
       create table if not exists api_sessions (
         token_hash text primary key,
         user_id uuid not null references users(id) on delete cascade,
@@ -112,6 +129,13 @@ export async function ensureGenerationSchema() {
 
       alter table generation_jobs add column if not exists input_image_url text;
       alter table generation_jobs add column if not exists reservation_breakdown jsonb not null default '{}'::jsonb;
+      alter table purchases add column if not exists purchase_token_hash text;
+      alter table purchases add column if not exists amount_minor bigint;
+      alter table purchases add column if not exists currency text;
+      alter table purchases add column if not exists credits_granted bigint not null default 0;
+      alter table purchases add column if not exists raw_reference text;
+      alter table purchases add column if not exists verified_at timestamptz;
+
       create unique index if not exists idx_users_external_auth_unique on users(external_auth_id) where external_auth_id is not null;
       create unique index if not exists idx_users_email_unique on users(lower(email)) where email is not null;
       create index if not exists idx_generation_user_created on generation_jobs(user_id, created_at desc);
@@ -119,6 +143,7 @@ export async function ensureGenerationSchema() {
       create index if not exists idx_credit_ledger_user_created on credit_ledger(user_id, created_at desc);
       create index if not exists idx_api_sessions_user on api_sessions(user_id, expires_at desc);
       create index if not exists idx_password_reset_user on password_reset_tokens(user_id, expires_at desc);
+      create index if not exists idx_purchases_user_created on purchases(user_id, created_at desc);
     `);
   })().catch((error) => {
     schemaPromise = null;
