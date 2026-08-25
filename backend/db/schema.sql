@@ -43,6 +43,7 @@ create table if not exists generation_jobs (
   aspect_ratio text,
   duration_seconds integer,
   audio boolean not null default false,
+  input_image_url text,
   provider text,
   provider_job_id text,
   credits_reserved bigint not null default 0,
@@ -58,6 +59,7 @@ create table if not exists generation_jobs (
   completed_at timestamptz
 );
 alter table generation_jobs add column if not exists reservation_breakdown jsonb not null default '{}'::jsonb;
+alter table generation_jobs add column if not exists input_image_url text;
 create index if not exists idx_generation_user_created on generation_jobs(user_id, created_at desc);
 create index if not exists idx_generation_status on generation_jobs(status, created_at);
 

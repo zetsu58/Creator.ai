@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.6",
+    "@vercel/blob": "^1.0.2",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
