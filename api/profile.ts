@@ -15,13 +15,14 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     if(!userId) return res.status(401).json({error:'unauthorized'});
 
     if(req.method==='GET'){
-      const r=await pool.query(`select u.id,u.email,u.display_name as "displayName",u.plan,u.created_at as "createdAt",u.external_auth_id as "externalAuthId",
+      const r=await pool.query(`select u.id,u.email,u.display_name as "displayName",u.plan,u.role,u.created_at as "createdAt",u.external_auth_id as "externalAuthId",
         coalesce(w.purchased_credits,0) as purchased,coalesce(w.subscription_credits,0) as subscription,coalesce(w.promo_credits,0) as promo,
         coalesce(w.purchased_credits,0)+coalesce(w.subscription_credits,0)+coalesce(w.promo_credits,0) as credits
         from users u left join wallets w on w.user_id=u.id where u.id=$1 and u.status='active'`,[userId]);
       if(!r.rowCount) return res.status(404).json({error:'user_not_found'});
       const row=r.rows[0];
-      return res.status(200).json({...row,authType:String(row.externalAuthId||'').startsWith('email:')?'email':String(row.externalAuthId||'').startsWith('firebase:')?'social':'guest',externalAuthId:undefined});
+      const role=String(row.role||'USER').toUpperCase();
+      return res.status(200).json({...row,role,isAdmin:role==='ADMIN',authType:String(row.externalAuthId||'').startsWith('email:')?'email':String(row.externalAuthId||'').startsWith('firebase:')?'social':'guest',externalAuthId:undefined});
     }
 
     if(req.method!=='PATCH'&&req.method!=='POST') return res.status(405).json({error:'method_not_allowed'});
