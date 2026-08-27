@@ -46,6 +46,7 @@
     { "source": "/checkout", "destination": "/checkout.html" },
     { "source": "/payment-result", "destination": "/payment-result.html" },
     { "source": "/admin/", "destination": "/admin/index.html" },
+    { "source": "/api/admin", "destination": "/api/profile" },
     { "source": "/api/paytr/callback", "destination": "/api/wallet?action=paytr_callback" },
     { "source": "/health", "destination": "/api/health" },
     { "source": "/v1/auth/anonymous", "destination": "/api/auth-anonymous" },
