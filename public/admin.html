@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0d12" />
+  <title>Veyra AI Yönetici Paneli</title>
+  <link rel="stylesheet" href="/admin/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">V</div><div><strong>Veyra AI</strong><span>Yönetici Paneli</span></div></div>
+      <nav id="nav">
+        <button class="nav-item active" data-view="overview">Genel Bakış</button>
+        <button class="nav-item" data-view="users">Kullanıcılar</button>
+        <button class="nav-item" data-view="generations">AI Üretimleri</button>
+        <button class="nav-item" data-view="credits">Kredi & Gelir</button>
+        <button class="nav-item" data-view="providers">AI Sağlayıcıları</button>
+        <button class="nav-item" data-view="system">Sistem Sağlığı</button>
+        <button class="nav-item" data-view="settings">Ayarlar</button>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><span id="backendStatus">Veyra Cloud kontrol ediliyor</span></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><p class="eyebrow">ADMIN</p><h1 id="pageTitle">Genel Bakış</h1></div><div class="top-actions"><button class="ghost" id="refreshBtn">Yenile</button><button class="primary" id="connectBtn">Profile Dön</button></div></header>
+      <section id="view-overview" class="view active">
+        <div class="hero"><div><p class="eyebrow">VEYRA AI LIVE OPS</p><h2>Ürün, kullanıcı ve üretim operasyonlarını tek merkezden yönet.</h2><p>Bu ekran yalnız server-side ADMIN rolü doğrulanan oturumlara açıktır.</p></div><div class="hero-badge">ADMIN</div></div>
+        <div class="grid metrics"><article class="card metric"><span>Toplam Kullanıcı</span><strong id="mUsers">0</strong><small>Canlı</small></article><article class="card metric"><span>Toplam Üretim</span><strong id="mJobs">0</strong><small>Canlı</small></article><article class="card metric"><span>Kredi</span><strong id="mCredits">—</strong><small>Ledger</small></article><article class="card metric"><span>Gelir</span><strong id="mRevenue">—</strong><small>Doğrulanmış ödeme</small></article></div>
+        <div class="grid two"><article class="card"><div class="card-head"><h3>Üretim Kuyruğu</h3><span class="pill ok">Canlı</span></div><div id="queueList" class="list"></div></article><article class="card"><div class="card-head"><h3>Sistem</h3><span class="pill">Canlı</span></div><div id="costList" class="list"></div></article></div>
+      </section>
+      <section id="view-users" class="view"><div class="toolbar"><input id="userSearch" placeholder="ID, e-posta veya kullanıcı ara"/><button class="primary" data-safe-action="credit">Kredi İşlemi</button></div><div class="card table-wrap"><table><thead><tr><th>Kullanıcı</th><th>Plan</th><th>Kredi</th><th>Üretim</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="usersTable"></tbody></table></div></section>
+      <section id="view-generations" class="view"><div class="card table-wrap"><table><thead><tr><th>Job</th><th>Tür</th><th>Kullanıcı</th><th>Model</th><th>Kredi</th><th>Durum</th></tr></thead><tbody id="jobsTable"></tbody></table></div></section>
+      <section id="view-credits" class="view"><div class="card"><h3>Kredi Yönetimi</h3><p class="muted">Kullanıcılar ekranındaki Kredi butonu ile ekleme/çıkarma işlemleri server-side transaction, ledger ve audit log üzerinden yürütülür.</p></div></section>
+      <section id="view-providers" class="view"><div class="grid three" id="providerCards"></div></section>
+      <section id="view-system" class="view"><div class="card"><h3>Sistem Sağlığı</h3><div id="systemHealth" class="list"><div><span>API</span><b>Kontrol ediliyor</b></div><div><span>Database</span><b>Kontrol ediliyor</b></div></div></div></section>
+      <section id="view-settings" class="view"><div class="card"><h3>Güvenlik</h3><p class="muted">ADMIN yetkisi istemciden değil veritabanındaki rol ve aktif oturum üzerinden doğrulanır. Kritik kredi işlemleri audit log'a yazılır.</p></div></section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="/admin/app.js"></script>
+</body>
+</html>
