@@ -28,6 +28,9 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/admin", "destination": "/admin/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/studio", "destination": "/studio.html" },
@@ -42,6 +45,7 @@
     { "source": "/support", "destination": "/support.html" },
     { "source": "/checkout", "destination": "/checkout.html" },
     { "source": "/payment-result", "destination": "/payment-result.html" },
+    { "source": "/admin/", "destination": "/admin/index.html" },
     { "source": "/api/paytr/callback", "destination": "/api/wallet?action=paytr_callback" },
     { "source": "/health", "destination": "/api/health" },
     { "source": "/v1/auth/anonymous", "destination": "/api/auth-anonymous" },
