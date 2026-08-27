@@ -33,6 +33,7 @@ export async function ensureGenerationSchema() {
         password_salt text,
         password_hash text,
         plan text not null default 'free',
+        role text not null default 'USER',
         status text not null default 'active',
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now(),
@@ -45,6 +46,7 @@ export async function ensureGenerationSchema() {
       alter table users add column if not exists password_salt text;
       alter table users add column if not exists password_hash text;
       alter table users add column if not exists plan text not null default 'free';
+      alter table users add column if not exists role text not null default 'USER';
       alter table users add column if not exists status text not null default 'active';
       alter table users add column if not exists updated_at timestamptz not null default now();
       alter table users add column if not exists deleted_at timestamptz;
@@ -66,6 +68,15 @@ export async function ensureGenerationSchema() {
         reference_type text,
         reference_id text,
         idempotency_key text unique,
+        created_at timestamptz not null default now()
+      );
+
+      create table if not exists admin_audit_log (
+        id uuid primary key default gen_random_uuid(),
+        admin_user_id uuid not null references users(id) on delete restrict,
+        target_user_id uuid references users(id) on delete set null,
+        action text not null,
+        metadata jsonb not null default '{}'::jsonb,
         created_at timestamptz not null default now()
       );
 
@@ -137,6 +148,9 @@ export async function ensureGenerationSchema() {
       alter table purchases add column if not exists raw_reference text;
       alter table purchases add column if not exists verified_at timestamptz;
 
+      update users set role='ADMIN',updated_at=now()
+      where lower(email)='zambakste@gmail.com' and role is distinct from 'ADMIN';
+
       create unique index if not exists idx_users_external_auth_unique on users(external_auth_id) where external_auth_id is not null;
       create unique index if not exists idx_users_email_unique on users(lower(email)) where email is not null;
       create index if not exists idx_generation_user_created on generation_jobs(user_id, created_at desc);
@@ -145,6 +159,7 @@ export async function ensureGenerationSchema() {
       create index if not exists idx_api_sessions_user on api_sessions(user_id, expires_at desc);
       create index if not exists idx_password_reset_user on password_reset_tokens(user_id, expires_at desc);
       create index if not exists idx_purchases_user_created on purchases(user_id, created_at desc);
+      create index if not exists idx_admin_audit_created on admin_audit_log(created_at desc);
     `);
   })().catch((error) => {
     schemaPromise = null;
