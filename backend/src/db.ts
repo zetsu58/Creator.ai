@@ -51,6 +51,13 @@ export async function ensureGenerationSchema() {
       alter table users add column if not exists updated_at timestamptz not null default now();
       alter table users add column if not exists deleted_at timestamptz;
 
+      -- Older production schemas constrained role to legacy lowercase values.
+      -- Normalize first, then replace that constraint with the RBAC values used by the API.
+      alter table users drop constraint if exists users_role_check;
+      update users set role=case when upper(coalesce(role,'USER'))='ADMIN' then 'ADMIN' else 'USER' end;
+      alter table users alter column role set default 'USER';
+      alter table users add constraint users_role_check check (role in ('USER','ADMIN'));
+
       create table if not exists wallets (
         user_id uuid primary key references users(id) on delete cascade,
         purchased_credits bigint not null default 0,
