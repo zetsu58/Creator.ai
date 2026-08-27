@@ -9,6 +9,7 @@
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
     "@huggingface/inference": "^4.13.6",
+    "@runwayml/sdk": "^3.17.0",
     "@vercel/blob": "^1.0.2",
     "@vercel/node": "^5.3.24",
     "firebase-admin": "^14.2.0",
