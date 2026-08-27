@@ -1,4 +1,5 @@
 import { InferenceClient } from '@huggingface/inference';
+import RunwayML from '@runwayml/sdk';
 
 export type GenerationJob = {
   id: string;
@@ -24,11 +25,38 @@ function primaryProvider():ProviderName{const x=process.env.AI_PROVIDER_PRIMARY?
 function fallbackProvider():ProviderName{return normalizeProvider(process.env.AI_PROVIDER_FALLBACK);}
 function modelFor(j:GenerationJob){return(j.type==='video'||j.type==='product_ad')?(process.env.REPLICATE_VIDEO_MODEL?.trim()||'prunaai/p-video'):(process.env.REPLICATE_IMAGE_MODEL?.trim()||'google/imagen-4-fast');}
 function hfModelFor(j:GenerationJob){return(j.type==='video'||j.type==='product_ad')?(process.env.HF_VIDEO_MODEL?.trim()||'Lightricks/LTX-Video-0.9.8-13B-distilled'):(process.env.HF_IMAGE_MODEL?.trim()||'black-forest-labs/FLUX.1-schnell');}
-function runwayRatio(j:GenerationJob){const r=(j.aspectRatio||'16:9').trim();if(r==='9:16'||r==='720:1280')return'720:1280';return'1280:720';}
+function runwayRatio(j:GenerationJob):'1280:720'|'720:1280'{const r=(j.aspectRatio||'16:9').trim();return r==='9:16'||r==='720:1280'?'720:1280':'1280:720';}
 function runwayPrompt(prompt:string){const clean=prompt.trim().replace(/\s+/g,' ');return clean.length>1000?clean.slice(0,1000):clean;}
-async function runwayRequest(path:string,init?:RequestInit){const token=runwayToken();if(!token)throw new Error('runway_token_missing');const h=new Headers(init?.headers);h.set('Authorization',`Bearer ${token}`);h.set('X-Runway-Version','2024-11-06');h.set('Content-Type','application/json');const res=await fetch(`https://api.dev.runwayml.com${path}`,{...init,headers:h});const body:any=await res.json().catch(()=>({}));if(!res.ok){const detail=body?.details||body?.errors||body?.validationErrors||body;throw new Error(`runway_http_${res.status}:${body?.error||body?.message||'request_failed'}:${JSON.stringify(detail).slice(0,1600)}`);}return body;}
-async function runwayStart(j:GenerationJob):Promise<ProviderStart>{if(j.type!=='video'&&j.type!=='product_ad')throw new Error(`runway_unsupported_job_type:${j.type}`);const configuredModel=process.env.RUNWAY_VIDEO_MODEL?.trim()||'gen4.5';const model=configuredModel==='gen4.5'?'gen4.5':configuredModel;const duration=Math.max(2,Math.min(10,Math.round(Number(j.seconds||5))));const promptText=runwayPrompt(j.prompt);if(promptText.length<3)throw new Error('runway_prompt_too_short');const image=j.imageUrl?.trim();const body:any={model,promptText,ratio:runwayRatio(j),duration};if(image)body.promptImage=image;const out=await runwayRequest('/v1/image_to_video',{method:'POST',body:JSON.stringify(body)});if(!out.id)throw new Error(`runway_missing_task_id:${JSON.stringify(out)}`);return{providerJobId:`runway:${out.id}`,status:'processing'};}
-async function runwayPoll(id:string):Promise<ProviderPoll>{const out=await runwayRequest(`/v1/tasks/${encodeURIComponent(id)}`);const s=String(out.status||'').toUpperCase();if(s==='SUCCEEDED')return{status:'completed',outputUrl:outputUrl(out.output)};if(s==='FAILED'||s==='CANCELED')return{status:'failed',error:String(out.failure||out.failureCode||s)};return{status:'processing'};}
+function runwayClient(){const apiKey=runwayToken();if(!apiKey)throw new Error('runway_token_missing');return new RunwayML({apiKey});}
+async function runwayStart(j:GenerationJob):Promise<ProviderStart>{
+  if(j.type!=='video'&&j.type!=='product_ad')throw new Error(`runway_unsupported_job_type:${j.type}`);
+  const configuredModel=process.env.RUNWAY_VIDEO_MODEL?.trim()||'gen4.5';
+  const model=configuredModel==='gen4.5'?'gen4.5':configuredModel;
+  const duration=Math.max(2,Math.min(10,Math.round(Number(j.seconds||5)))) as 2|3|4|5|6|7|8|9|10;
+  const promptText=runwayPrompt(j.prompt);
+  if(promptText.length<3)throw new Error('runway_prompt_too_short');
+  const image=j.imageUrl?.trim();
+  const input:any={model,promptText,ratio:runwayRatio(j),duration};
+  if(image)input.promptImage=image;
+  try{
+    const out:any=await runwayClient().imageToVideo.create(input);
+    if(!out?.id)throw new Error(`runway_missing_task_id:${JSON.stringify(out)}`);
+    return{providerJobId:`runway:${out.id}`,status:'processing'};
+  }catch(e:any){
+    const status=e?.status||e?.statusCode||'sdk';
+    const detail=e?.error||e?.body||e?.message||String(e);
+    throw new Error(`runway_sdk_${status}:${typeof detail==='string'?detail:JSON.stringify(detail).slice(0,1800)}`);
+  }
+}
+async function runwayPoll(id:string):Promise<ProviderPoll>{
+  try{
+    const out:any=await runwayClient().tasks.retrieve(id);
+    const s=String(out?.status||'').toUpperCase();
+    if(s==='SUCCEEDED')return{status:'completed',outputUrl:outputUrl(out.output)};
+    if(s==='FAILED'||s==='CANCELED')return{status:'failed',error:String(out.failure||out.failureCode||s)};
+    return{status:'processing'};
+  }catch(e:any){throw new Error(`runway_poll_failed:${e?.message||String(e)}`)}
+}
 function replicateInput(j:GenerationJob){const input:any={};input[process.env.REPLICATE_PROMPT_FIELD||'prompt']=j.prompt;const a=process.env.REPLICATE_ASPECT_RATIO_FIELD?.trim();if(j.aspectRatio&&a)input[a]=j.aspectRatio;const d=process.env.REPLICATE_DURATION_FIELD?.trim();if(j.seconds&&d&&(j.type==='video'||j.type==='product_ad'))input[d]=j.seconds;return input;}
 async function replicateRequest(path:string,init?:RequestInit){const token=replicateToken();if(!token)throw new Error('replicate_token_missing');const h=new Headers(init?.headers);h.set('Authorization',`Bearer ${token}`);h.set('Content-Type','application/json');const res=await fetch(`https://api.replicate.com${path}`,{...init,headers:h});const body:any=await res.json().catch(()=>({}));if(!res.ok)throw new Error(`replicate_http_${res.status}:${body?.detail||body?.error||JSON.stringify(body)}`);return body;}
 async function hfOutputToUrl(value:unknown,mime:string){if(typeof value==='string'&&value.trim())return value.trim();if(value instanceof Blob){const b=new Uint8Array(await value.arrayBuffer());if(!b.length)throw new Error('huggingface_empty_output');return`data:${value.type||mime};base64,${Buffer.from(b).toString('base64')}`;}const url=outputUrl(value);if(url)return url;throw new Error('huggingface_output_unsupported');}
