@@ -58,7 +58,6 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     const email=String((req.body??{}).email??'').trim().toLowerCase();
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({error:'invalid_email'});
     const u=await pool.query("select id,external_auth_id from users where lower(email)=lower($1) and status='active' limit 1",[email]);
-    // Do not reveal whether an email is registered.
     if(!u.rowCount) return res.status(202).json({ok:true});
     if(!String(u.rows[0].external_auth_id||'').startsWith('email:')) return res.status(409).json({error:'password_managed_by_provider'});
 
@@ -69,7 +68,8 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     const delivery=await sendResetEmail(email,raw);
     if(!delivery.ok){
       await pool.query('delete from password_reset_tokens where token_hash=$1',[hashToken(raw)]).catch(()=>{});
-      if(delivery.reason==='not_configured') return res.status(503).json({error:'email_delivery_not_configured'});
+      const reason='reason' in delivery?delivery.reason:'provider_error';
+      if(reason==='not_configured') return res.status(503).json({error:'email_delivery_not_configured'});
       return res.status(502).json({error:'email_delivery_failed'});
     }
     return res.status(202).json({ok:true});
