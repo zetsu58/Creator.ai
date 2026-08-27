@@ -30,23 +30,32 @@ function runwayPrompt(prompt:string){const clean=prompt.trim().replace(/\s+/g,' 
 function runwayClient(){const apiKey=runwayToken();if(!apiKey)throw new Error('runway_token_missing');return new RunwayML({apiKey});}
 async function runwayStart(j:GenerationJob):Promise<ProviderStart>{
   if(j.type!=='video'&&j.type!=='product_ad')throw new Error(`runway_unsupported_job_type:${j.type}`);
+  const apiKey=runwayToken();
+  if(!apiKey)throw new Error('runway_token_missing');
   const configuredModel=process.env.RUNWAY_VIDEO_MODEL?.trim()||'gen4.5';
   const model=configuredModel==='gen4.5'?'gen4.5':configuredModel;
-  const duration=Math.max(2,Math.min(10,Math.round(Number(j.seconds||5)))) as 2|3|4|5|6|7|8|9|10;
+  const duration=Math.max(2,Math.min(10,Math.round(Number(j.seconds||5))));
   const promptText=runwayPrompt(j.prompt);
   if(promptText.length<3)throw new Error('runway_prompt_too_short');
   const image=j.imageUrl?.trim();
   const input:any={model,promptText,ratio:runwayRatio(j),duration};
+  // Gen-4.5 text-to-video is the same endpoint, but promptImage must be omitted entirely.
   if(image)input.promptImage=image;
-  try{
-    const out:any=await runwayClient().imageToVideo.create(input);
-    if(!out?.id)throw new Error(`runway_missing_task_id:${JSON.stringify(out)}`);
-    return{providerJobId:`runway:${out.id}`,status:'processing'};
-  }catch(e:any){
-    const status=e?.status||e?.statusCode||'sdk';
-    const detail=e?.error||e?.body||e?.message||String(e);
-    throw new Error(`runway_sdk_${status}:${typeof detail==='string'?detail:JSON.stringify(detail).slice(0,1800)}`);
-  }
+  const res=await fetch('https://api.dev.runwayml.com/v1/image_to_video',{
+    method:'POST',
+    headers:{
+      'Authorization':`Bearer ${apiKey}`,
+      'Content-Type':'application/json',
+      'X-Runway-Version':'2024-11-06'
+    },
+    body:JSON.stringify(input)
+  });
+  const raw=await res.text();
+  let out:any={};
+  try{out=raw?JSON.parse(raw):{};}catch{out={raw};}
+  if(!res.ok)throw new Error(`runway_http_${res.status}:${JSON.stringify(out).slice(0,1800)}`);
+  if(!out?.id)throw new Error(`runway_missing_task_id:${JSON.stringify(out).slice(0,1800)}`);
+  return{providerJobId:`runway:${out.id}`,status:'processing'};
 }
 async function runwayPoll(id:string):Promise<ProviderPoll>{
   try{
