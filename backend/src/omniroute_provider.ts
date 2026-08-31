@@ -77,14 +77,17 @@ export async function omniRouteStart(job:OmniRouteMediaJob):Promise<OmniRouteSta
     const seconds=Math.max(2,Math.min(15,Math.round(Number(job.seconds||5))));
     const body:any={model,prompt:job.prompt.trim(),duration:String(seconds),aspect_ratio:job.aspectRatio||'9:16',size:videoSize(job.aspectRatio)};
     if(job.imageUrl?.trim())body.input=[{type:'text',text:job.prompt.trim()},{type:'image',image:job.imageUrl.trim()}];
-    // Vercel must not spend its full 60s execution window waiting on a provider that may generate synchronously.
-    // A proper OmniRoute video provider should acknowledge quickly with an id. Fail fast otherwise so credits are refunded
-    // and the frontend receives JSON instead of Vercel's plain-text 504 page.
+    // Video submission now runs in the always-on durable Railway worker rather than inside
+    // the Vercel request lifecycle. Some OmniRoute video adapters (especially web-backed
+    // providers) may wait for upstream generation before returning, so allow a bounded
+    // long-running request instead of aborting after 25 seconds.
+    const configuredTimeout=Number(process.env.OMNIROUTE_VIDEO_SUBMIT_TIMEOUT_MS||300_000);
+    const submitTimeoutMs=Number.isFinite(configuredTimeout)?Math.max(30_000,Math.min(600_000,Math.round(configuredTimeout))):300_000;
     let out:any;
     try {
-      out=await request('/v1/videos/generations',{method:'POST',headers:{'Idempotency-Key':job.id},body:JSON.stringify(body)},25_000);
+      out=await request('/v1/videos/generations',{method:'POST',headers:{'Idempotency-Key':job.id},body:JSON.stringify(body)},submitTimeoutMs);
     } catch(e:any) {
-      if(e?.name==='AbortError') throw new Error('omniroute_video_submit_timeout');
+      if(e?.name==='AbortError') throw new Error(`omniroute_video_submit_timeout:${submitTimeoutMs}`);
       throw e;
     }
     const status=String(out?.status||'').toLowerCase(), url=mediaUrl(out);
