@@ -60,16 +60,12 @@ function modelIds(body:any):string[]{
 }
 
 async function resolveVideoModel(configured:string):Promise<string>{
-  // OmniRoute validates /v1/videos/generations against its live video registry. If the configured alias
-  // is stale, ask the authenticated model catalog and select the exact provider-prefixed equivalent.
   let ids:string[]=[];
-  try { ids=modelIds(await request('/v1/models',{method:'GET'},15_000)); } catch { return configured; }
+  try { ids=modelIds(await request('/v1/models',{method:'GET'},8_000)); } catch { return configured; }
   if(ids.includes(configured)) return configured;
   const leaf=configured.includes('/')?configured.split('/').slice(1).join('/'):configured;
   const exactLeaf=ids.find(id=>id===leaf||id.endsWith(`/${leaf}`));
   if(exactLeaf) return exactLeaf;
-  const seedance=ids.find(id=>/seedance[-_.]?2(?:\.0)?[-_.]?fast/i.test(id));
-  if(seedance) return seedance;
   return configured;
 }
 
@@ -81,21 +77,30 @@ export async function omniRouteStart(job:OmniRouteMediaJob):Promise<OmniRouteSta
     const seconds=Math.max(2,Math.min(15,Math.round(Number(job.seconds||5))));
     const body:any={model,prompt:job.prompt.trim(),duration:String(seconds),aspect_ratio:job.aspectRatio||'9:16',size:videoSize(job.aspectRatio)};
     if(job.imageUrl?.trim())body.input=[{type:'text',text:job.prompt.trim()},{type:'image',image:job.imageUrl.trim()}];
-    const out=await request('/v1/videos/generations',{method:'POST',headers:{'Idempotency-Key':job.id},body:JSON.stringify(body)},60_000);
+    // Vercel must not spend its full 60s execution window waiting on a provider that may generate synchronously.
+    // A proper OmniRoute video provider should acknowledge quickly with an id. Fail fast otherwise so credits are refunded
+    // and the frontend receives JSON instead of Vercel's plain-text 504 page.
+    let out:any;
+    try {
+      out=await request('/v1/videos/generations',{method:'POST',headers:{'Idempotency-Key':job.id},body:JSON.stringify(body)},25_000);
+    } catch(e:any) {
+      if(e?.name==='AbortError') throw new Error('omniroute_video_submit_timeout');
+      throw e;
+    }
     const status=String(out?.status||'').toLowerCase(), url=mediaUrl(out);
     if((status==='completed'||status==='succeeded'||status==='success')&&url)return{providerJobId:`omniroute:${String(out?.id||job.id)}`,status:'completed',outputUrl:url};
     const id=String(out?.id||out?.task_id||out?.video_id||'').trim(); if(!id)throw new Error(`omniroute_missing_video_id:${JSON.stringify(out).slice(0,1200)}`);
     return{providerJobId:`omniroute:${id}`,status:'processing'};
   }
   const model=process.env.OMNIROUTE_IMAGE_MODEL?.trim(); if(!model)throw new Error('omniroute_image_model_missing');
-  const out=await request('/v1/images/generations',{method:'POST',headers:{'Idempotency-Key':job.id},body:JSON.stringify({model,prompt:job.prompt.trim(),n:1,size:imageSize(job.aspectRatio),response_format:'url'})},120_000);
+  const out=await request('/v1/images/generations',{method:'POST',headers:{'Idempotency-Key':job.id},body:JSON.stringify({model,prompt:job.prompt.trim(),n:1,size:imageSize(job.aspectRatio),response_format:'url'})},45_000);
   const url=mediaUrl(out); if(!url)throw new Error(`omniroute_missing_image_url:${JSON.stringify(out).slice(0,1200)}`);
   return{providerJobId:`omniroute:${job.id}`,status:'completed',outputUrl:url};
 }
 
 export async function omniRoutePoll(providerJobId:string):Promise<OmniRoutePoll>{
   const id=providerJobId.startsWith('omniroute:')?providerJobId.slice('omniroute:'.length):providerJobId;
-  const out=await request(`/v1/videos/${encodeURIComponent(id)}`,{method:'GET'},30_000), status=String(out?.status||'').toLowerCase();
+  const out=await request(`/v1/videos/${encodeURIComponent(id)}`,{method:'GET'},20_000), status=String(out?.status||'').toLowerCase();
   if(status==='completed'||status==='succeeded'||status==='success'){const url=mediaUrl(out);return url?{status:'completed',outputUrl:url}:{status:'failed',error:'omniroute_completed_without_output'};}
   if(status==='failed'||status==='canceled'||status==='cancelled'||status==='expired')return{status:'failed',error:String(out?.error?.message||out?.error||status)};
   return{status:'processing'};
