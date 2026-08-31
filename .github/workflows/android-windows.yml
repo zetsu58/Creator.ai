@@ -1,4 +1,4 @@
-name: CreatorAI Android APK Windows
+name: Veyra AI Android APK Windows
 
 on:
   push:
@@ -30,26 +30,46 @@ jobs:
         run: flutter --version
 
       - name: Bootstrap Android
-        run: flutter create --platforms=android --org ai.creator --project-name creator_ai .
+        run: flutter create --platforms=android --org ai.veyra --project-name creator_ai .
 
-      - name: Raise Android minSdk to 24
+      - name: Configure Android production defaults
         shell: pwsh
         run: |
           if (Test-Path 'android/app/build.gradle.kts') {
-            (Get-Content 'android/app/build.gradle.kts' -Raw).Replace('minSdk = flutter.minSdkVersion','minSdk = 24') | Set-Content 'android/app/build.gradle.kts'
+            $p = 'android/app/build.gradle.kts'
+            $s = Get-Content $p -Raw
+            $s = $s.Replace('minSdk = flutter.minSdkVersion','minSdk = 24')
+            $s = [regex]::Replace($s, 'applicationId\s*=\s*"[^"]+"', 'applicationId = "ai.veyra.app"')
+            Set-Content $p $s
           } elseif (Test-Path 'android/app/build.gradle') {
-            (Get-Content 'android/app/build.gradle' -Raw).Replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24') | Set-Content 'android/app/build.gradle'
+            $p = 'android/app/build.gradle'
+            $s = Get-Content $p -Raw
+            $s = $s.Replace('minSdkVersion flutter.minSdkVersion','minSdkVersion 24')
+            $s = [regex]::Replace($s, 'applicationId\s+"[^"]+"', 'applicationId "ai.veyra.app"')
+            Set-Content $p $s
           }
-          Select-String -Path 'android/app/build.gradle*' -Pattern 'minSdk'
+          $manifest = 'android/app/src/main/AndroidManifest.xml'
+          $m = Get-Content $manifest -Raw
+          $permission = '<uses-permission android:name="android.permission.INTERNET" />'
+          if (-not $m.Contains($permission)) {
+            $m = $m.Replace('<application', "    $permission`r`n`r`n    <application")
+          }
+          $m = $m.Replace('android:label="creator_ai"', 'android:label="Veyra AI"')
+          Set-Content $manifest $m
+          Select-String -Path 'android/app/build.gradle*' -Pattern 'minSdk|applicationId'
+          Select-String -Path $manifest -Pattern 'android.permission.INTERNET|android:label'
 
       - name: Packages
         run: flutter pub get
 
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
       - name: Smoke tests
         run: flutter test
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build production debug APK
+        run: flutter build apk --debug -t lib/main_auth.dart --dart-define=VEYRA_API_BASE_URL=https://veyra-ai-sigma.vercel.app
 
       - name: Verify APK
         shell: pwsh
@@ -62,7 +82,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: creatorai-debug-apk-windows
+          name: veyra-ai-debug-apk-windows
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
