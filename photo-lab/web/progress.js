@@ -1,0 +1,2 @@
+export const stageLabel=s=>({queued:'Sıraya alındı',uploading:'Fotoğraf yükleniyor',analyzing:'Görüntü analiz ediliyor',cleaning:'Gürültü ve sıkıştırma temizleniyor',inpainting:'Seçilen alan temizleniyor',restoring:'Detaylar dengeleniyor',upscaling:'Çözünürlük yükseltiliyor',exporting:'Sonuç hazırlanıyor',completed:'Hazır',failed:'İşlem başarısız',cancelled:'İptal edildi'}[s]||'İşleniyor');
+export const progressText=j=>`${stageLabel(j.stage)}${Number.isFinite(j.progress)?` • %${Math.round(j.progress)}`:''}`;
